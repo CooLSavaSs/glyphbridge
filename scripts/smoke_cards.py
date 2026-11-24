@@ -96,7 +96,40 @@ def test_speech():
     check("speech -> en audio written", os.path.getsize(os.path.join(d, "talk.en.wav")) > 1000)
 
 
-TESTS = {"lid": test_lid, "checker": test_checker, "ocr": test_ocr, "pipeline": test_pipeline, "madlad": test_madlad, "speech": test_speech}
+def test_madlad_int8():
+    from glyphbridge.backends import MadladInt8Backend
+    b = MadladInt8Backend()
+    t0 = time.time()
+    out = b.translate(["Bugün hava çok güzel.", "Gallia est omnis divisa in partes tres."], "tr", "en")
+    check("madlad-int8 tr->en", "weather" in out[0][0].lower(), f"{out[0][0]!r} p={out[0][1]} ({time.time()-t0:.0f}s incl. load)")
+    out = b.translate(["Gallia est omnis divisa in partes tres."], "la", "en")
+    print(f"INFO madlad-int8 la->en {out[0][0]!r} p={out[0][1]}", flush=True)
+    _ram("madlad-int8")
+
+
+def test_gemma_q4():
+    import os as _os
+    _os.environ["GLYPHBRIDGE_ENABLE_GEMMA"] = "1"
+    from glyphbridge.backends import GemmaQ4Backend
+    b = GemmaQ4Backend()
+    t0 = time.time()
+    out = b.translate(["Bugün hava çok güzel, parka gidelim mi?"], "tr", "en")
+    check("gemma-q4 tr->en", "weather" in out[0][0].lower(), f"{out[0][0]!r} ({time.time()-t0:.0f}s incl. load)")
+    out = b.translate(["Bugün hava çok güzel."], "tr", "de")
+    check("gemma-q4 tr->de", "wetter" in out[0][0].lower(), repr(out[0][0]))
+    _ram("gemma-q4")
+
+
+def _ram(label):
+    try:
+        import psutil
+        print(f"INFO process RAM after {label}: {psutil.Process().memory_info().rss / 1e9:.1f} GB", flush=True)
+    except ImportError:
+        pass
+
+
+TESTS = {"lid": test_lid, "checker": test_checker, "ocr": test_ocr, "pipeline": test_pipeline, "madlad": test_madlad, "speech": test_speech,
+         "madlad-int8": test_madlad_int8, "gemma-q4": test_gemma_q4}
 
 if __name__ == "__main__":
     for name in sys.argv[1:] or list(TESTS):
