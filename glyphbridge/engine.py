@@ -9,6 +9,7 @@ For every sentence:
 3. **Check** the meaning of each translation against its source (LaBSE). Sentences
    that fail go to the next backend; the best attempt wins. If none passes, the
    result is returned with ``flagged=True`` (shown as a warning by the CLI).
+   Numbers and names are also checked without any model (``checker.consistency``).
 
 ``confidence`` is the checker's similarity when the checker is installed,
 otherwise the model's own token probability (None when the backend gives none).
@@ -24,7 +25,7 @@ import os
 
 from . import cards, lid
 from .backends import Backend, BackendUnavailable, default_backends
-from .checker import Checker
+from .checker import Checker, consistency
 
 PIVOT = "en"
 
@@ -54,6 +55,7 @@ class TranslationResult:
     flagged: bool = False
     similarity: Optional[float] = None
     attempts: List[str] = field(default_factory=list)
+    issues: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -153,12 +155,14 @@ class Engine:
             still = []
             for i, out, prob, sim in zip(pending, outs, probs, sims):
                 conf = sim if sim is not None else prob
-                ok = self.checker.passes(sim)
+                issues = consistency(texts[i], out)
+                ok = self.checker.passes(sim) and not issues
                 prev = best[i]
                 attempts = (prev.attempts if prev else []) + [label]
                 cand = TranslationResult(out, source, target, None if conf is None else round(conf, 4), label,
-                                         flagged=not ok, similarity=sim, attempts=attempts)
-                if prev is None or ok or (cand.confidence or 0) > (prev.confidence or 0):
+                                         flagged=not ok, similarity=sim, attempts=attempts, issues=issues)
+                better = (len(cand.issues), -(cand.confidence or 0)) < (len(prev.issues), -(prev.confidence or 0)) if prev else True
+                if prev is None or ok or better:
                     best[i] = cand
                 else:
                     prev.attempts = attempts
