@@ -12,15 +12,17 @@ and cards are unloaded again when the RAM budget is full. Nothing else runs.
 RAM and disk figures are estimates for CPU use (weights × bytes per weight), not
 measurements, unless marked "measured"; real use is usually somewhat higher.
 
-Every non-Opus card is pinned to an exact model revision. Opus-MT pair cards come
-from the official Helsinki-NLP organisation and follow its latest release.
+Every non-Opus card is pinned to an exact model revision, and the main weight files
+of the community-hosted cards are checked against a pinned SHA-256 after download
+(``glyphbridge cards verify``). Opus-MT pair cards come from the official
+Helsinki-NLP organisation and follow its latest release.
 """
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -35,17 +37,23 @@ class Card:
     # Exact Hugging Face commit to download, so a model cannot change under users'
     # feet (supply-chain safety). Update deliberately, after testing the new version.
     revision: Optional[str] = None
+    # SHA-256 of the main weight files at that revision, checked after download.
+    sha256: Tuple[Tuple[str, str], ...] = ()
 
 
 CARDS: Dict[str, Card] = {
     "madlad-int8": Card("madlad-int8", "MADLAD-400 3B int8 — 400+ languages, fits 8 GB PCs",
-                        "Nextcloud-AI/madlad400-3b-mt-ct2-int8", 3500, "~3 GB", "Apache-2.0",
+                        "Nextcloud-AI/madlad400-3b-mt-ct2-int8", 3500, "~3.0 GB", "Apache-2.0",
                         "Default rare-language card (CTranslate2).",
-                    revision="aa32bbdeba7880eff2096ec044cb155a340a9400"),
+                    revision="aa32bbdeba7880eff2096ec044cb155a340a9400",
+                    sha256=(("model.bin", "77b9fd9ab97c1259d07089b5f854393dad81bc5fb5647d3f9a5d101c94f40daa"),
+                            ("spiece.model", "ef11ac9a22c7503492f56d48dce53be20e339b63605983e9f27d2cd0e0f3922c"))),
     "gemma-q4": Card("gemma-q4", "TranslateGemma 4B 4-bit — highest quality, fits 8 GB PCs",
                      "anilb/translategemma-gguf", 3500, "~2.5 GB", "Gemma terms",
                      "Community Q4_K_M quantization run with llama.cpp. Installing it turns it on.",
-                    revision="b4a4747a01c36cadf60238985cd31dc6ea66b760"),
+                    revision="b4a4747a01c36cadf60238985cd31dc6ea66b760",
+                    sha256=(("translategemma-4b-it.Q4_K_M.gguf",
+                             "81200d03e843d2ec1ece6eeafe7d13cb6e5211e1fcd336ade55790b683a08330"),)),
     "madlad": Card("madlad", "MADLAD-400 3B full size — opt-in, needs ~8 GB free RAM",
                    "google/madlad400-3b-mt", 6500, "~12 GB", "Apache-2.0",
                    "Loaded in bfloat16 (6.5 GB measured). Prefer madlad-int8 on 8 GB PCs.",
@@ -56,8 +64,9 @@ CARDS: Dict[str, Card] = {
                   "use gemma-q4 on 8 GB PCs.",
                     revision="10042cb0e6e7fdce748996a71dc3dc432a4e0c89"),
     "lid": Card("lid", "GlotLID — language identification, 1,600+ languages",
-                "cis-lmu/glotlid", 500, "?", "Apache-2.0", "Size not measured yet.",
-                    revision="e9592e0a9bc3b6f2a946de94faaa188d1dd6f522"),
+                "cis-lmu/glotlid", 1000, "~0.8 GB", "Apache-2.0", "",
+                    revision="e9592e0a9bc3b6f2a946de94faaa188d1dd6f522",
+                    sha256=(("model.bin", "3b26297652e105cb63acde0fbf5aa228161528b519331e58a7c94ea9fe58474c"),)),
     "checker": Card("checker", "LaBSE — meaning checker, 109 languages",
                     "sentence-transformers/LaBSE", 1000, "~1.9 GB", "Apache-2.0",
                     revision="836121a0533e5664b21c7aacc5d22951f2b8b25b"),
@@ -109,6 +118,35 @@ def installed_cards() -> List[str]:
     return found
 
 
+class ChecksumError(RuntimeError):
+    """A downloaded model file does not match its pinned SHA-256."""
+
+
+def _sha256(path: str) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def verify(card_id: str) -> List[str]:
+    """Check the pinned SHA-256 of a card's files (downloading them if needed).
+    Returns the files checked; raises ChecksumError on a mismatch."""
+    from huggingface_hub import hf_hub_download  # type: ignore
+    card = resolve(card_id)
+    checked = []
+    for filename, expected in card.sha256:
+        path = hf_hub_download(card.repo, filename, revision=card.revision)
+        actual = _sha256(path)
+        if actual != expected:
+            raise ChecksumError(f"{card_id}: {filename} has SHA-256 {actual}, expected {expected}. "
+                                f"Delete it with 'glyphbridge cards remove {card_id}' and install again.")
+        checked.append(filename)
+    return checked
+
+
 def install(card_id: str) -> str:
     from huggingface_hub import snapshot_download  # type: ignore
     if card_id.startswith(OPUS_PREFIX):
@@ -121,10 +159,14 @@ def install(card_id: str) -> str:
         raise RuntimeError(f"No Opus-MT model for {card_id}: {last}")
     if card_id == "gemma-q4":  # the repo also holds a 12B file; fetch only the 4B one
         from .backends import GemmaQ4Backend
-        return snapshot_download(GemmaQ4Backend.repo, allow_patterns=[GemmaQ4Backend.filename],
+        path = snapshot_download(GemmaQ4Backend.repo, allow_patterns=[GemmaQ4Backend.filename],
                                  revision=GemmaQ4Backend.revision)
+        verify(card_id)
+        return path
     card = resolve(card_id)
-    return snapshot_download(card.repo, revision=card.revision)
+    path = snapshot_download(card.repo, revision=card.revision)
+    verify(card_id)
+    return path
 
 
 def remove(card_id: str) -> int:

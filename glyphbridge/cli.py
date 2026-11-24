@@ -142,6 +142,9 @@ def _cmd_cards(args: argparse.Namespace) -> int:
                 print(f"Installing {cid} ...")
                 cards.install(cid)
                 print(f"\u2713 {cid}")
+            elif args.action == "verify":
+                files = cards.verify(cid)
+                print(f"\u2713 {cid}: SHA-256 OK for {', '.join(files)}" if files else f"{cid}: no pinned checksums")
             else:
                 freed = cards.remove(cid)
                 print(f"Removed {cid} ({freed / 1e6:.0f} MB freed)" if freed else f"{cid} was not installed")
@@ -201,8 +204,8 @@ def build_parser() -> argparse.ArgumentParser:
     li.add_argument("--seconds", type=float, default=5.0, help="Length of each recorded chunk")
     li.set_defaults(func=_cmd_listen)
 
-    c = sub.add_parser("cards", help="List, install or remove model cards")
-    c.add_argument("action", nargs="?", choices=["list", "install", "remove"])
+    c = sub.add_parser("cards", help="List, install, verify or remove model cards")
+    c.add_argument("action", nargs="?", choices=["list", "install", "remove", "verify"])
     c.add_argument("cards", nargs="*", help="Card ids, e.g. opus:tr-en madlad gemma lid checker")
     c.set_defaults(func=_cmd_cards)
 

@@ -22,6 +22,7 @@ from dataclasses import asdict, dataclass, field, replace
 from typing import Dict, List, Optional, Sequence
 
 import os
+import unicodedata
 
 from . import cards, lid
 from .backends import Backend, BackendUnavailable, default_backends
@@ -71,6 +72,16 @@ class Engine:
         self._cache: "OrderedDict[tuple, TranslationResult]" = OrderedDict()
         self.cache_size = int(os.environ.get("GLYPHBRIDGE_RESULT_CACHE", "2048"))
 
+    def fingerprint(self) -> tuple:
+        """Everything that can change a translation besides the text and languages:
+        which cards are in use (and their pinned revisions), the routing preference
+        and the checker threshold. Part of the cache key, so a result from one model,
+        model version or setting is never reused for another."""
+        cards_used = tuple((b.name, getattr(b, "revision", None) or getattr(b, "repo", None)
+                            or getattr(b, "model_id", None)) for b in self.backends)
+        return (cards_used, os.environ.get("GLYPHBRIDGE_PREFER", "speed"),
+                getattr(self.checker, "threshold", None), cards.ram_budget_mb())
+
     def _ordered(self) -> List[Backend]:
         """Backends in the order to try them.
 
@@ -114,10 +125,14 @@ class Engine:
                 raise TranslationError("Could not detect the source language; pass source=...")
             source = detected
         source, target = source.lower(), target.lower()
-        keys = [(t, source, target) for t in texts]
+        fp = self.fingerprint()
+        keys = [(_normalize(t), source, target, fp) for t in texts]
         todo = list(dict.fromkeys(k for k in keys if k not in self._cache))
         if todo:
-            fresh = self._translate_uncached([k[0] for k in todo], target, source)
+            first_text = {}
+            for t, k in zip(texts, keys):
+                first_text.setdefault(k, t)
+            fresh = self._translate_uncached([first_text[k] for k in todo], target, source)
             for k, r in zip(todo, fresh):
                 self._cache[k] = r
                 self._cache.move_to_end(k)
@@ -176,6 +191,11 @@ class Engine:
 
     def translate(self, text: str, target: str, source: str = "auto") -> TranslationResult:
         return self.translate_batch([text], target=target, source=source)[0]
+
+
+def _normalize(text: str) -> str:
+    """Cache-key form of a text: Unicode NFC, whitespace collapsed."""
+    return " ".join(unicodedata.normalize("NFC", text).split())
 
 
 _default: Optional[Engine] = None
