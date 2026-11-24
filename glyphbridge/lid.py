@@ -48,8 +48,13 @@ def detect(text: str) -> Optional[str]:
         return None
     model = _glotlid()
     if model is not None:
-        labels, _ = model.predict(sample)
-        code = labels[0].replace("__label__", "").split("_")[0]
+        try:
+            label = model.predict(sample)[0][0]
+        except ValueError:
+            # fastText's Python wrapper breaks with NumPy 2 ("Unable to avoid copy");
+            # its C++ predictor works, so call it directly.
+            label = model.f.predict(sample, 1, 0.0, "strict")[0][1]
+        code = label.replace("__label__", "").split("_")[0]
         return ISO3_TO_1.get(code, code)
     try:
         from langdetect import detect as ld  # type: ignore
