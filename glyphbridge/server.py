@@ -22,7 +22,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from . import __version__
-from .engine import SUPPORTED_LANGUAGES, Engine, TranslationError, get_engine
+from .engine import SUPPORTED_LANGUAGES, Engine, TranslationError, ask_target, get_engine, parse_language
 
 MAX_TEXTS = 64
 MAX_CHARS = 20_000
@@ -32,7 +32,21 @@ class TranslateRequest(BaseModel):
     text: Optional[str] = Field(None, description="A single text to translate.")
     texts: Optional[List[str]] = Field(None, description="Several texts to translate in one call.")
     source: str = Field("auto", description="Source language code, or 'auto'.")
-    target: str = Field(..., description="Target language code, e.g. 'en'.")
+    target: Optional[str] = Field(None, description="Target language code, e.g. 'en'. If missing, "
+                                  "Glyphbridge does not translate but asks for it (HTTP 422).")
+
+
+def _chat_reply(model: str, content: str, extra: dict) -> dict:
+    return {
+        "id": f"chatcmpl-{uuid.uuid4().hex[:24]}",
+        "object": "chat.completion",
+        "created": int(time.time()),
+        "model": model,
+        "choices": [{"index": 0, "finish_reason": "stop",
+                     "message": {"role": "assistant", "content": content}}],
+        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+        "glyphbridge": extra,
+    }
 
 
 class RateLimiter:
@@ -96,6 +110,8 @@ def create_app(engine: Optional[Engine] = None, api_key: Optional[str] = None,
             raise HTTPException(status_code=422, detail="Send 'text' or 'texts'")
         if len(texts) > MAX_TEXTS or sum(len(t) for t in texts) > MAX_CHARS:
             raise HTTPException(status_code=413, detail=f"At most {MAX_TEXTS} texts and {MAX_CHARS} characters")
+        if not req.target:
+            raise HTTPException(status_code=422, detail=ask_target(texts[0], eng))
         try:
             results = eng.translate_batch(texts, target=req.target, source=req.source)
         except TranslationError as exc:
@@ -118,29 +134,30 @@ def create_app(engine: Optional[Engine] = None, api_key: Optional[str] = None,
 
     @app.post("/v1/chat/completions", dependencies=[Depends(auth)])
     def chat_completions(req: ChatRequest, eng: Engine = Depends(engine_dep)):
-        if not req.model.startswith("glyphbridge-"):
-            raise HTTPException(status_code=400, detail="model must be 'glyphbridge-<target language>'")
-        target = req.model[len("glyphbridge-"):]
+        if req.model != "glyphbridge" and not req.model.startswith("glyphbridge-"):
+            raise HTTPException(status_code=400,
+                                detail="model must be 'glyphbridge' or 'glyphbridge-<target language>'")
         user = [m for m in req.messages if m.role == "user"]
         if not user or not _content_text(user[-1].content).strip():
             raise HTTPException(status_code=422, detail="Send at least one user message with text")
         text = _content_text(user[-1].content)
+        target = req.model[len("glyphbridge-"):] if req.model != "glyphbridge" else None
+        if target is None:
+            # Model "glyphbridge": translation only, never chat. If the last message names a
+            # language and there is an earlier one, translate that; otherwise ask.
+            lang = parse_language(text)
+            if lang and len(user) > 1:
+                target, text = lang, _content_text(user[-2].content)
+            else:
+                ask = ask_target(text, eng)
+                return _chat_reply(req.model, ask["question"], ask)
         if len(text) > MAX_CHARS:
             raise HTTPException(status_code=413, detail=f"At most {MAX_CHARS} characters")
         try:
             r = eng.translate(text, target=target, source=req.source or "auto")
         except TranslationError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {
-            "id": f"chatcmpl-{uuid.uuid4().hex[:24]}",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": req.model,
-            "choices": [{"index": 0, "finish_reason": "stop",
-                         "message": {"role": "assistant", "content": r.translation}}],
-            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-            "glyphbridge": r.to_dict(),
-        }
+        return _chat_reply(req.model, r.translation, r.to_dict())
 
     return app
 

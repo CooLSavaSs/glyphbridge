@@ -52,7 +52,28 @@ def _cmd_translate_file(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ensure_target(args: argparse.Namespace, sample: str) -> int:
+    """Glyphbridge only translates: without --to it asks for the target language."""
+    if args.to:
+        return 0
+    from .engine import ask_target, parse_language
+    ask = ask_target(sample[:500])
+    if sys.stdin.isatty() and not args.json:
+        answer = input(f"{ask['question']} ({ask['question_en']}) > ")
+        args.to = parse_language(answer) or answer.strip().lower()
+        return 0
+    if args.json:
+        print(json.dumps(ask, ensure_ascii=False))
+    else:
+        print(f"{ask['question']} ({ask['question_en']}) -> use --to <language code>", file=sys.stderr)
+    return 3
+
+
 def _cmd_translate(args: argparse.Namespace) -> int:
+    if args.file and not args.to:
+        rc = _ensure_target(args, os.path.basename(args.file))
+        if rc:
+            return rc
     if args.file and (args.output or os.path.splitext(args.file)[1].lower() in DOC_EXTS):
         return _cmd_translate_file(args)
     if args.file:
@@ -65,6 +86,9 @@ def _cmd_translate(args: argparse.Namespace) -> int:
     else:
         print("Give text, --file, or pipe text in.", file=sys.stderr)
         return 2
+    rc = _ensure_target(args, text)
+    if rc:
+        return rc
 
     # Translate paragraph by paragraph so long documents keep their layout.
     paragraphs = text.split("\n")
@@ -184,7 +208,7 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("--speak", action="store_true", help="For audio input: also write the translation as speech (.wav)")
     t.add_argument("--output", "-o", help="Where to write the translated file (default: name.<lang>.ext)")
     t.add_argument("--from", dest="source", default="auto", help="Source language code (default: auto)")
-    t.add_argument("--to", "-t", required=True, help="Target language code")
+    t.add_argument("--to", "-t", help="Target language code (asked for if missing)")
     t.add_argument("--json", action="store_true", help="Print JSON with confidence scores")
     t.add_argument("--show-confidence", action="store_true", help="Print the lowest confidence to stderr")
     t.add_argument("--memory", action="append", default=[],

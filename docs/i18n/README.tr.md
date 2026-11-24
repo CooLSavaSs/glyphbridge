@@ -74,6 +74,8 @@ Glyphbridge kendini kanıtlamış açık modelleri kullanır. Bir **yönlendiric
 
 **Şu ana kadarki kalite** (golden-v1: elle hazırlanmış küçük bir kontrol seti, benchmark değil): Opus-MT Türkçe→İngilizce'de chrF **75,6**, İngilizce→Türkçe'de **76,8** alıyor. İsimler, sayılar, olumsuzluk ve teknik metin iyi; deyimler zayıf (chrF 22–28) ve sıradaki iyileştirme konusu. Latincede MADLAD regresyon örneği *Gallia est omnis divisa in partes tres*'i yanlış çeviriyor (chrF 38,7), TranslateGemma 4-bit (`gemma-q4`) ise **84,9** alıyor; bu yüzden Latince artık kuruluysa `gemma-q4`'e gidiyor. Türkçede `gemma-q4` Opus-MT'den düşük puan aldı (68,6 / 64,4), bu yüzden Opus-MT önde kalıyor. `gemma-q4` yoksa Latince, Apache lisanslı Opus-MT İtalik grup modeline (`opus-mt-itc-en`, chrF **61,1**) gidiyor. Yönlendirici sırasını tahminler değil bu ölçümler belirliyor.
 
+**Sadece çeviri:** Glyphbridge'in tek işi çeviri. Metin ne derse desin cevap vermez, sohbet etmez. *Nasılsın?* yazıp hedef dil vermezseniz *iyiyim* demez; **hangi dile çevireceğini sorar** (mümkünse metnin kendi dilinde). Komut satırı soruyu sorar; REST API 422 ve soru döner; OpenAI uç noktasında `glyphbridge` modeli soruyu cevap olarak verir, siz dili yazınca (`de`, `Almanca`) önceki mesajı çevirir; MCP aracı da soruyu döner. Genel dil modeli olan kartlar (TranslateGemma, Hy-MT2) yalnızca sabit bir çeviri komutuyla çağrılır; anlam denetçisi çeviri olmayan her çıktıyı reddeder.
+
 **golden-v2** (230 cümle, 9 dil çifti, yalnız rapor; ilk ölçüm CI #96). Dil çiftine göre chrF:
 
 | çift | Opus-MT (varsayılan) | Hy-MT2 4-bit | TranslateGemma 4-bit |

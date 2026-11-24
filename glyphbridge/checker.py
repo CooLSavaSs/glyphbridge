@@ -96,8 +96,15 @@ def _names(text: str) -> List[str]:
     return names
 
 
-def consistency(source: str, translation: str) -> List[str]:
-    """Problems that sentence similarity cannot see. Empty list = no problem found."""
+NOUN_CAPS = {"de", "lb"}  # languages that capitalise every noun (German, Luxembourgish)
+
+
+def consistency(source: str, translation: str, source_lang: Optional[str] = None) -> List[str]:
+    """Problems that sentence similarity cannot see. Empty list = no problem found.
+
+    The name check is skipped for languages that capitalise every noun: there a capital
+    letter does not mark a name (golden-v2: 14 of 15 German sentences were false alarms).
+    """
     problems = []
     have = _numbers(translation)
     for n in _numbers(source):
@@ -108,7 +115,7 @@ def consistency(source: str, translation: str) -> List[str]:
     rep = _repeated(source, translation)
     if rep:
         problems.append(f"repeated text: {rep}")
-    if _is_latin(source) and _is_latin(translation):
+    if source_lang not in NOUN_CAPS and _is_latin(source) and _is_latin(translation):
         words = [_fold(w) for w in _WORD.findall(translation)]
         for name in _names(source):
             if _fold(name) in _NOT_NAMES:

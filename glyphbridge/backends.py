@@ -120,8 +120,15 @@ class OpusBackend(Backend):
                 raise BackendUnavailable(str(exc)) from exc
         return self.cache.get(name, loader, OPUS_RAM_MB)
 
+    # Models measured as broken: they load but return unusable text, so the next
+    # template (the regular Opus-MT model) is used instead.
+    # tc-big-ar-en: word salad for every golden-v2 sentence (chrF 1.3, CI #96), while
+    # opus-mt-ar-en translates the same sentences correctly.
+    broken = {"Helsinki-NLP/opus-mt-tc-big-ar-en"}
+
     def _names(self, source: str, target: str):
-        return [tpl.format(src=source, tgt=target) for tpl in self.templates]
+        return [n for n in (tpl.format(src=source, tgt=target) for tpl in self.templates)
+                if n not in self.broken]
 
     def _model_for(self, source: str, target: str):
         cached = _cached_repos() if offline() else None

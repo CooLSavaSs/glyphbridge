@@ -101,6 +101,19 @@ Not used by default because their licenses forbid commercial use or exclude regi
 
 The `emotion` card reads the tone of the source and of every translation (positive, neutral or negative). If a clearly positive sentence comes back clearly negative, or the other way round, the translation is flagged (`tone changed: positive -> negative`) and the next card is tried. Results carry the source tone in `tone`. It is a card like the others: `glyphbridge cards install emotion`, about 0.8 GB RAM, loaded only while checking; `GLYPHBRIDGE_EMOTION=0` turns it off.
 
+### Translation only
+
+Glyphbridge does one thing: translate. It never answers, explains or chats, whatever the text says. Give it *How are you?* without a target language and it does not reply *I am fine*; it asks **which language to translate into** (in the language of the text when it can):
+
+| Interface | Without a target language |
+|---|---|
+| CLI | asks interactively; with `--json` or in a pipe it prints the question and exits with code 3 |
+| REST `/v1/translate` | HTTP 422, `detail.needs_target = true` and the question |
+| OpenAI endpoint, model `glyphbridge` | the reply is the question; answer with a language (`de`, `German`, `Almanca`) and the previous message is translated |
+| MCP `translate` | returns the question instead of a translation |
+
+Model cards that are general language models (TranslateGemma, Hy-MT2) are only ever called with a fixed translation prompt, and the meaning checker rejects any output that is not a translation of the input.
+
 ### Translation memory: pin your own translations
 
 Idioms and house terms are where models go wrong most often. A translation memory file fixes how a sentence or expression is translated; it is used before any model, and matching ignores case, extra spaces and the final punctuation mark:

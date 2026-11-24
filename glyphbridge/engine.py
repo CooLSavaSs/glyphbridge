@@ -91,7 +91,11 @@ class Engine:
         cards_used = tuple((b.name, getattr(b, "revision", None) or getattr(b, "repo", None)
                             or getattr(b, "model_id", None)) for b in self.backends)
         return (cards_used, os.environ.get("GLYPHBRIDGE_PREFER", "speed"),
-                getattr(self.checker, "threshold", None), cards.ram_budget_mb(),
+                getattr(self.checker, "threshold", None),
+                # The RAM budget matters only through the card order it produces. The raw
+                # number follows free RAM and changes all the time on a real PC, which made
+                # every lookup a cache miss.
+                tuple(b.name for b in self._ordered()),
                 self.memory.fingerprint(), self.emotion.enabled())
 
     def _ordered(self) -> List[Backend]:
@@ -201,7 +205,7 @@ class Engine:
             still = []
             for i, out, prob, sim, out_tone in zip(pending, outs, probs, sims, out_tones):
                 conf = sim if sim is not None else prob
-                issues = consistency(texts[i], out)
+                issues = consistency(texts[i], out, source)
                 flip = self.emotion.flipped(tones[i], out_tone)
                 if flip:
                     issues.append(flip)
@@ -234,6 +238,48 @@ def _normalize(text: str) -> str:
 
 
 _default: Optional[Engine] = None
+
+
+ASK_TARGET_EN = "Which language should I translate this into?"
+
+
+def ask_target(text: str, engine: Optional["Engine"] = None) -> dict:
+    """Glyphbridge only translates. Given text but no target language, it does not answer
+    the text (a greeting, a question, a story): it asks which language to translate into,
+    in the language the text is written in when it can."""
+    src = None
+    try:
+        src = lid.detect(text)
+    except Exception:  # noqa: BLE001 - detection is optional here
+        src = None
+    question = ASK_TARGET_EN
+    if src and src != "en":
+        try:
+            question = (engine or get_engine()).translate(ASK_TARGET_EN, target=src, source="en").translation
+        except Exception:  # noqa: BLE001 - fall back to English
+            question = ASK_TARGET_EN
+    return {"needs_target": True, "question": question, "question_en": ASK_TARGET_EN,
+            "detected_source": src, "text": text}
+
+
+def parse_language(answer: str) -> Optional[str]:
+    """'de', 'German' -> 'de'. None if the answer is not a known language."""
+    a = answer.strip().strip(".!?").lower()
+    if a in SUPPORTED_LANGUAGES:
+        return a
+    for code, name in SUPPORTED_LANGUAGES.items():
+        if a == name.lower():
+            return code
+    return LANGUAGE_WORDS.get(a)
+
+
+# Language names people type when asked, beyond the English names above (Turkish first).
+LANGUAGE_WORDS = {
+    "ingilizce": "en", "türkçe": "tr", "almanca": "de", "fransızca": "fr", "ispanyolca": "es",
+    "italyanca": "it", "portekizce": "pt", "rusça": "ru", "arapça": "ar", "çince": "zh",
+    "japonca": "ja", "korece": "ko", "hintçe": "hi", "hollandaca": "nl", "lehçe": "pl",
+    "latince": "la", "farsça": "fa", "persian": "fa", "latin": "la", "yunanca": "el", "greek": "el",
+}
 
 
 def get_engine() -> Engine:

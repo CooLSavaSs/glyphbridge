@@ -663,3 +663,80 @@ def test_golden_sets_are_well_formed_and_v2_keeps_v1():
         old, new = rows(path), rows(root / "v2" / path.name)
         assert new[:len(old)] == old, f"v2/{path.name} must start with the v1 rows"
     assert sum(len(rows(p)) for p in (root / "v2").glob("*.tsv")) >= 200
+
+
+def test_german_capitalised_nouns_are_not_names():
+    from glyphbridge.checker import consistency
+    src = "Bitte starten Sie den Rechner neu, um die Installation abzuschließen."
+    out = "Please restart the computer to complete the installation."
+    assert consistency(src, out, "de") == []
+    # Other languages keep the name check.
+    assert consistency("Yesterday Maria was in Berlin.", "Dün Anna Berlin'deydi.", "en") == ["name Maria missing"]
+
+
+def test_broken_opus_model_is_skipped():
+    from glyphbridge.backends import OpusBackend
+    names = OpusBackend()._names("ar", "en")
+    assert "Helsinki-NLP/opus-mt-tc-big-ar-en" not in names
+    assert "Helsinki-NLP/opus-mt-ar-en" in names
+    assert OpusBackend()._names("tr", "en")[0] == "Helsinki-NLP/opus-mt-tc-big-tr-en"
+
+
+def test_without_target_glyphbridge_asks_instead_of_answering(monkeypatch):
+    import glyphbridge.engine as eng
+    from fastapi.testclient import TestClient
+    from glyphbridge.server import create_app
+    monkeypatch.setattr(eng.lid, "detect", lambda text: "en")
+    monkeypatch.delenv("GLYPHBRIDGE_API_KEY", raising=False)
+    ask = eng.ask_target("How are you?")
+    assert ask["needs_target"] and ask["question"] == eng.ASK_TARGET_EN
+    assert eng.parse_language("Almanca") == "de" and eng.parse_language("German") == "de"
+    assert eng.parse_language("hello there") is None
+
+    class Fake:
+        def translate(self, text, target, source="auto"):
+            return eng.TranslationResult(f"[{target}] {text}", source, target, 0.9, "fake")
+
+        def translate_batch(self, texts, target, source="auto"):
+            return [self.translate(t, target, source) for t in texts]
+
+    app = create_app(engine=Fake())
+    c = TestClient(app)
+    r = c.post("/v1/translate", json={"text": "How are you?"})
+    assert r.status_code == 422 and r.json()["detail"]["needs_target"]
+    r = c.post("/v1/chat/completions", json={"model": "glyphbridge",
+                                             "messages": [{"role": "user", "content": "How are you?"}]})
+    assert r.json()["choices"][0]["message"]["content"] == eng.ASK_TARGET_EN
+    r = c.post("/v1/chat/completions", json={"model": "glyphbridge", "messages": [
+        {"role": "user", "content": "How are you?"},
+        {"role": "assistant", "content": eng.ASK_TARGET_EN},
+        {"role": "user", "content": "Almanca"}]})
+    assert r.json()["choices"][0]["message"]["content"] == "[de] How are you?"
+
+
+def test_cli_without_target_asks_and_does_not_translate(monkeypatch, capsys):
+    from glyphbridge import cli
+    import glyphbridge.engine as eng
+    monkeypatch.setattr(eng.lid, "detect", lambda text: "en")
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False, raising=False)
+    rc = cli.main(["translate", "How are you?", "--json"])
+    assert rc == 3
+    assert '"needs_target": true' in capsys.readouterr().out
+
+
+def test_cache_survives_changing_free_ram(monkeypatch):
+    # Free RAM changes between calls on a real PC; that alone must not empty the cache.
+    from glyphbridge import cards
+    calls = []
+
+    class Counting(FakeBackend):
+        def translate(self, texts, s, t):
+            calls.append(self.name)
+            return super().translate(texts, s, t)
+
+    budgets = iter([5000, 5100, 4900, 5050])
+    monkeypatch.setattr(cards, "ram_budget_mb", lambda: next(budgets, 5000))
+    e = Engine(backends=[Counting("opus", OPUS.table)], checker=FakeChecker())
+    e.translate("Merhaba dünya", "en", "tr")
+    e.translate("Merhaba dünya", "en", "tr")
+    assert calls == ["opus"]

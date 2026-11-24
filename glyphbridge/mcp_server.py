@@ -7,7 +7,7 @@ Start it with ``glyphbridge mcp`` (stdio transport). Example client config:
 
 from __future__ import annotations
 
-from .engine import SUPPORTED_LANGUAGES, TranslationError, get_engine
+from .engine import SUPPORTED_LANGUAGES, TranslationError, ask_target, get_engine
 
 
 def build_server():
@@ -19,9 +19,12 @@ def build_server():
     server = FastMCP("glyphbridge")
 
     @server.tool()
-    def translate(text: str, target: str, source: str = "auto") -> dict:
+    def translate(text: str, target: str = "", source: str = "auto") -> dict:
         """Translate text offline. `target` and `source` are language codes such as
-        'en', 'tr', 'de'; use source='auto' to detect the language."""
+        'en', 'tr', 'de'; use source='auto' to detect the language. Glyphbridge only
+        translates: without `target` it returns the question which language to use."""
+        if not target:
+            return ask_target(text)
         try:
             return get_engine().translate(text, target=target, source=source).to_dict()
         except TranslationError as exc:
