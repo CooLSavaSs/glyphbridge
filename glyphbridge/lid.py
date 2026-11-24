@@ -35,7 +35,9 @@ def _glotlid():
     except ImportError:
         return None
     try:
-        path = hf_hub_download(repo_id="cis-lmu/glotlid", filename="model.bin")
+        from .cards import CARDS
+        card = CARDS["lid"]
+        path = hf_hub_download(repo_id=card.repo, filename="model.bin", revision=card.revision)
         return fasttext.load_model(path)
     except Exception:  # offline, blocked, corrupt download...
         return None
