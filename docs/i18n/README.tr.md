@@ -67,10 +67,18 @@ Glyphbridge kendini kanıtlamış açık modelleri kullanır. Bir **yönlendiric
 | Nadir diller, tam boy *(isteğe bağlı)* | MADLAD-400 3B (`madlad`) | 400+ (Latince, Süryanice…) | Apache 2.0 | **6,5 GB ölçüldü** |
 | Dil tanıma | GlotLID (`lid`) | 1.600+ | Apache 2.0 | küçük |
 | Anlam denetçisi | LaBSE (`checker`) | 109 | Apache 2.0 | ~1 GB |
+| **En iyi ölçülen, 8 GB PC** *(kurunca açılır)* | Tencent Hy-MT2 1.8B 4-bit GGUF (`hymt2-q4`) | 36 (Türkçe dahil) | Apache 2.0 | **2,2 GB ölçüldü** (tepe) |
+| Duygu modülü *(kurunca açılır)* | çok dilli DistilBERT duygu modeli (`emotion`) | çok dilli | Apache 2.0 | **0,8 GB ölçüldü** |
 
 *Ölçüldü* yazan RAM değerleri, CI'da CPU üzerinde çeviri yapan bir sürecin tamamının (Python, kütüphaneler ve model) tepe değeridir; diğerleri tahmindir. Aralık, iki CI çalışmasının farklı tepe değerler verdiğini gösterir; yönlendirici yüksek olanla plan yapar. 8 GB'lık bir bilgisayarda 8 GB kartları sığar ama başka programlara az yer kalır.
 
 **Şu ana kadarki kalite** (golden-v1: elle hazırlanmış küçük bir kontrol seti, benchmark değil): Opus-MT Türkçe→İngilizce'de chrF **75,6**, İngilizce→Türkçe'de **76,8** alıyor. İsimler, sayılar, olumsuzluk ve teknik metin iyi; deyimler zayıf (chrF 22–28) ve sıradaki iyileştirme konusu. Latincede MADLAD regresyon örneği *Gallia est omnis divisa in partes tres*'i yanlış çeviriyor (chrF 38,7), TranslateGemma 4-bit (`gemma-q4`) ise **84,9** alıyor; bu yüzden Latince artık kuruluysa `gemma-q4`'e gidiyor. Türkçede `gemma-q4` Opus-MT'den düşük puan aldı (68,6 / 64,4), bu yüzden Opus-MT önde kalıyor. `gemma-q4` yoksa Latince, Apache lisanslı Opus-MT İtalik grup modeline (`opus-mt-itc-en`, chrF **61,1**) gidiyor. Yönlendirici sırasını tahminler değil bu ölçümler belirliyor.
+
+**Hy-MT2** (Tencent; Hugging Face'te en çok beğenilen çeviri modeli) Türkçe↔İngilizce için şimdiye kadar ölçülen en iyi kart: chrF **79,6** / **77,9** (Opus-MT 75,6 / 76,8), deyimlerde 46,8 (Opus-MT 28,4), tepe RAM 2,2 GB. Kurulunca (`glyphbridge cards install hymt2-q4`) ilk o denenir.
+
+### Duygu modülü: tonu koruyun
+
+`emotion` kartı kaynağın ve her çevirinin tonunu okur (olumlu, nötr, olumsuz). Açıkça olumlu bir cümle açıkça olumsuz dönerse (ya da tersi) çeviri işaretlenir (`tone changed: positive -> negative`) ve sıradaki kart denenir. Sonuçlarda kaynağın tonu `tone` alanında gelir. Diğerleri gibi bir karttır: `glyphbridge cards install emotion`, yaklaşık 0,8 GB RAM, yalnızca denetim sırasında yüklenir; `GLYPHBRIDGE_EMOTION=0` kapatır.
 
 ### Çeviri belleği: kendi çevirilerinizi sabitleyin
 
