@@ -65,8 +65,13 @@ _NUM = re.compile(r"\d+(?:[.,\u00a0 ]\d{3})*(?:[.,]\d+)?")
 _WORD = re.compile(r"[^\W\d_][\w'’-]*", re.UNICODE)
 
 
+_TIME = re.compile(r"\b(\d{1,2}):(\d{2})\b")
+
+
 def _numbers(text: str) -> List[str]:
-    out = []
+    # Clock times compare on a 12-hour dial: 14:30 and 2:30 p.m. are the same time.
+    out = [f"{int(h) % 12}:{mm}" for h, mm in _TIME.findall(text)]
+    text = _TIME.sub(" ", text)
     for m in _NUM.finditer(text):
         digits = re.sub(r"\D", "", m.group())
         if digits:
@@ -100,6 +105,9 @@ def consistency(source: str, translation: str) -> List[str]:
             have.remove(n)
         else:
             problems.append(f"number {n} missing")
+    rep = _repeated(source, translation)
+    if rep:
+        problems.append(f"repeated text: {rep}")
     if _is_latin(source) and _is_latin(translation):
         words = [_fold(w) for w in _WORD.findall(translation)]
         for name in _names(source):
@@ -113,10 +121,26 @@ def consistency(source: str, translation: str) -> List[str]:
     return problems
 
 
-# Words some languages capitalise that are not names (English weekdays and months).
-_NOT_NAMES = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-              "january", "february", "march", "april", "may", "june", "july", "august",
-              "september", "october", "november", "december"}
+# Capitalised words that are not names: weekdays and months (English, Turkish, German,
+# French, Spanish), which some languages capitalise and others do not, or translate.
+_NOT_NAMES = set("""
+monday tuesday wednesday thursday friday saturday sunday january february march april may june
+july august september october november december
+pazartesi sali carsamba persembe cuma cumartesi pazar ocak subat mart nisan mayis haziran temmuz
+agustos eylul ekim kasim aralik
+montag dienstag mittwoch donnerstag freitag samstag sonntag januar februar marz juni juli oktober
+dezember
+""".split())
+
+
+def _repeated(source: str, translation: str) -> str:
+    """A sentence the model wrote twice although the source has it once."""
+    parts = [p.strip().lower() for p in re.split(r"(?<=[.!?])\s+", translation) if p.strip()]
+    src = source.lower()
+    for i, p in enumerate(parts):
+        if len(p.split()) >= 3 and p in parts[i + 1:] and src.count(p) < 2:
+            return p
+    return ""
 
 
 def _fold(word: str) -> str:

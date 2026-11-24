@@ -200,8 +200,10 @@ class MadladBackend(Backend):
 # ---------------------------------------------------------------------------
 # Languages TranslateGemma was evaluated on that Glyphbridge routes to it by default.
 # Override with GLYPHBRIDGE_GEMMA_LANGS="en,tr,de,...".
+# Latin (la) is included because golden-v1 measured gemma-q4 at chrF 84.9 for la-en
+# against 38.7 for madlad-int8.
 GEMMA_DEFAULT_LANGS = (
-    "ar bg bn ca cs da de el en es et fa fi fr gu he hi hr hu id it ja kn ko lt lv ml mr "
+    "ar bg bn ca cs da de el en es et fa fi fr gu he hi hr hu id it ja kn ko la lt lv ml mr "
     "nl no pa pl pt ro ru sk sl sr sv sw ta te th tr uk ur vi zh zu"
 ).split()
 
