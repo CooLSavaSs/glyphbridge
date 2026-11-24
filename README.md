@@ -66,7 +66,7 @@ Glyphbridge builds on proven open models instead of starting from zero. A **rout
 | Fast path | Opus-MT / tc-big (`opus:<src>-<tgt>`) | one pair per card | CC-BY 4.0 | ~600 MB |
 | Best quality, **8 GB PCs** *(opt-in)* | TranslateGemma 4B 4-bit GGUF (`gemma-q4`) | ~55 evaluated | Gemma terms | **4.6–4.8 GB measured** (peak) |
 | Rare languages, **8 GB PCs** | MADLAD-400 3B int8 CTranslate2 (`madlad-int8`) | 400+ | Apache 2.0 | **3.3–5.5 GB measured** (peak) |
-| Best quality, full size *(opt-in)* | TranslateGemma 4B (`gemma`) | ~55 evaluated, ~500 pairs trained; also images | Gemma terms | ~9 GB (est.) |
+| Best quality, full size *(opt-in)* | TranslateGemma 4B (`gemma`) | ~55 evaluated, ~500 pairs trained; also images | Gemma terms | **9.4 GB measured** (peak) |
 | Rare languages, full size *(opt-in)* | MADLAD-400 3B (`madlad`) | 400+ (Latin, Syriac, ...) | Apache 2.0 | **6.5 GB measured** |
 | Language detection | GlotLID (`lid`) | 1,600+ | Apache 2.0 | small |
 | Meaning checker | LaBSE (`checker`) | 109 | Apache 2.0 | ~1 GB |
