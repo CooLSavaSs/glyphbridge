@@ -94,7 +94,7 @@ jobs:
           pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
           pip install -e ".[small]"
       - name: Run 8 GB card checks
-        run: python scripts/smoke_cards.py --isolate madlad-int8 gemma-q4
+        run: python scripts/smoke_cards.py --isolate madlad-int8 gemma-q4 hymt2-q4 emotion
       - name: Verify SHA-256 of the 8 GB cards
         run: |
           glyphbridge cards verify madlad-int8
@@ -113,3 +113,10 @@ jobs:
           GLYPHBRIDGE_GEMMA_LANGS: en,tr,la
         run: |
           python scripts/golden.py tests/golden/v1/tr-en.tsv:0 tests/golden/v1/en-tr.tsv:0 tests/golden/v1/la-en.tsv:0 --json golden-gemma.json
+      - name: Golden set with Hy-MT2 1.8B 4-bit alone (report only, decides its router place)
+        env:
+          GLYPHBRIDGE_OFFLINE: "1"
+          GLYPHBRIDGE_BACKENDS: hymt2-q4
+          GLYPHBRIDGE_ENABLE_HYMT: "1"
+        run: |
+          python scripts/golden.py tests/golden/v1/tr-en.tsv:0 tests/golden/v1/en-tr.tsv:0 --json golden-hymt2.json
