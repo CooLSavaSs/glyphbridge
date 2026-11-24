@@ -86,11 +86,12 @@ def _cmd_translate(args: argparse.Namespace) -> int:
                          ensure_ascii=False, indent=2))
     else:
         print("\n".join(out))
-        if args.show_confidence and results:
-            low = min(r.confidence for r in results)
+        known = [r.confidence for r in results if r.confidence is not None]
+        if args.show_confidence and known:
+            low = min(known)
             print(f"\n[confidence: lowest {low:.2f}]", file=sys.stderr)
         for original, r in flagged:
-            print(f"\u26a0 low confidence ({r.confidence:.2f}): {original!r} -> {r.translation!r}", file=sys.stderr)
+            print(f"\u26a0 low confidence ({r.confidence or 0:.2f}): {original!r} -> {r.translation!r}", file=sys.stderr)
     return 0
 
 
