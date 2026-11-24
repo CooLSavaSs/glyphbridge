@@ -187,6 +187,8 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("--to", "-t", required=True, help="Target language code")
     t.add_argument("--json", action="store_true", help="Print JSON with confidence scores")
     t.add_argument("--show-confidence", action="store_true", help="Print the lowest confidence to stderr")
+    t.add_argument("--memory", action="append", default=[],
+                   help="Translation memory file (TSV: source_lang, target_lang, source, translation); repeatable")
     t.set_defaults(func=_cmd_translate)
 
     s = sub.add_parser("serve", help="Run the REST API server")
@@ -216,6 +218,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = build_parser().parse_args(argv)
+    if getattr(args, "memory", None):
+        existing = [p for p in os.environ.get("GLYPHBRIDGE_MEMORY", "").split(os.pathsep) if p]
+        os.environ["GLYPHBRIDGE_MEMORY"] = os.pathsep.join(existing + args.memory)
     return args.func(args)
 
 

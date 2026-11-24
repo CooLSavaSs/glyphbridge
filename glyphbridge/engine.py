@@ -28,6 +28,7 @@ import unicodedata
 from . import cards, lid
 from .backends import Backend, BackendUnavailable, default_backends
 from .checker import Checker, consistency
+from .memory import Memory
 
 log = logging.getLogger("glyphbridge")
 
@@ -66,11 +67,14 @@ class TranslationResult:
 
 
 class Engine:
-    def __init__(self, backends: Optional[List[Backend]] = None, checker: Optional[Checker] = None):
+    def __init__(self, backends: Optional[List[Backend]] = None, checker: Optional[Checker] = None,
+                 memory: Optional[Memory] = None):
         if cards.offline():
             os.environ["HF_HUB_OFFLINE"] = "1"  # use installed cards only, never download
         self.backends = backends if backends is not None else default_backends()
         self.checker = checker if checker is not None else Checker()
+        # Your own fixed translations (idioms, terms), used before any model.
+        self.memory = memory if memory is not None else Memory.from_env()
         # Results cache: a sentence repeated in a document is translated only once.
         self._cache: "OrderedDict[tuple, TranslationResult]" = OrderedDict()
         self.cache_size = int(os.environ.get("GLYPHBRIDGE_RESULT_CACHE", "2048"))
@@ -83,7 +87,8 @@ class Engine:
         cards_used = tuple((b.name, getattr(b, "revision", None) or getattr(b, "repo", None)
                             or getattr(b, "model_id", None)) for b in self.backends)
         return (cards_used, os.environ.get("GLYPHBRIDGE_PREFER", "speed"),
-                getattr(self.checker, "threshold", None), cards.ram_budget_mb())
+                getattr(self.checker, "threshold", None), cards.ram_budget_mb(),
+                self.memory.fingerprint())
 
     def _ordered(self) -> List[Backend]:
         """Backends in the order to try them.
@@ -164,6 +169,14 @@ class Engine:
         source = source.lower()
         if source == target:
             return [TranslationResult(t, source, target, 1.0, "identity") for t in texts]
+
+        hits = {i: m for i, t in enumerate(texts) if (m := self.memory.get(t, source, target)) is not None}
+        if hits:
+            rest = [i for i in range(len(texts)) if i not in hits]
+            done = dict(zip(rest, self._translate_uncached([texts[i] for i in rest], target, source)))
+            for i, m in hits.items():
+                done[i] = TranslationResult(m, source, target, 1.0, "memory", attempts=["memory"])
+            return [done[i] for i in range(len(texts))]
 
         routes = self.candidates(source, target)
         if not routes:
