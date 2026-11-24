@@ -91,7 +91,8 @@ def _cmd_translate(args: argparse.Namespace) -> int:
             low = min(known)
             print(f"\n[confidence: lowest {low:.2f}]", file=sys.stderr)
         for original, r in flagged:
-            print(f"\u26a0 low confidence ({r.confidence or 0:.2f}): {original!r} -> {r.translation!r}", file=sys.stderr)
+            why = "; ".join(r.issues) or f"low confidence {r.confidence or 0:.2f}"
+            print(f"\u26a0 {why}: {original!r} -> {r.translation!r}", file=sys.stderr)
     return 0
 
 
@@ -124,9 +125,9 @@ def _cmd_cards(args: argparse.Namespace) -> int:
         print(f"RAM budget: {cards.ram_budget_mb()} MB  (set GLYPHBRIDGE_RAM_BUDGET_MB to change)\n")
         for c in cards.CARDS.values():
             mark = "\u2713" if c.id in have else " "
-            print(f"[{mark}] {c.id:<8} RAM ~{c.ram_mb:>5} MB  disk {c.disk:<8} {c.license:<12} {c.title}")
+            print(f"[{mark}] {c.id:<11} RAM ~{c.ram_mb:>5} MB  disk {c.disk:<8} {c.license:<12} {c.title}")
             if c.note:
-                print(f"    {'':<8} {c.note}")
+                print(f"    {'':<11} {c.note}")
         opus = sorted(x for x in have if x.startswith(cards.OPUS_PREFIX))
         tick = "\u2713" if opus else " "
         print(f"\n[{tick}] opus:<src>-<tgt>  RAM ~{cards.OPUS_RAM_MB} MB each, disk ~300 MB each"
