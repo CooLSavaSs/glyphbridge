@@ -483,3 +483,25 @@ def test_consistency_accepts_exonyms_and_accents_but_catches_dropped_names():
     # Real problems are still caught.
     assert consistency("Elif yarın Londra'ya uçacak.", "Elif will fly to Paris tomorrow.") == ["name Londra missing"]
     assert consistency("Yesterday Maria was in Berlin.", "Dün Anna Berlin'deydi.") == ["name Maria missing"]
+
+
+def test_backend_that_crashes_in_supports_is_skipped():
+    class Exploding(FakeBackend):
+        def supports(self, s, t):
+            raise RuntimeError("cache scan failed")
+
+    e = Engine(backends=[Exploding("bad", {}), OPUS], checker=FakeChecker())
+    r = e.translate("Merhaba dünya", target="en", source="tr")
+    assert r.translation == "Hello world" and r.model == "opus:tr-en"
+
+
+def test_opus_offline_only_considers_installed_pairs(monkeypatch):
+    from glyphbridge import backends as bk
+    monkeypatch.setenv("GLYPHBRIDGE_OFFLINE", "1")
+    monkeypatch.setattr(bk, "_cached_repos", lambda: {"Helsinki-NLP/opus-mt-tr-en"})
+    tried = []
+    b = bk.OpusBackend(bk.ModelCache(budget_mb=100000))
+    b._load_named = lambda name: tried.append(name) or ("tok", "model")
+    assert b.supports("tr", "en") and tried == ["Helsinki-NLP/opus-mt-tr-en"]
+    tried.clear()
+    assert not b.supports("la", "en") and tried == []
