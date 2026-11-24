@@ -289,3 +289,78 @@ def test_small_cards_are_default_order(monkeypatch):
     from glyphbridge.backends import default_backends
     monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
     assert [b.name for b in default_backends()] == ["opus", "gemma-q4", "gemma", "madlad-int8", "madlad"]
+
+
+def test_rate_limit(eng):
+    client = TestClient(create_app(engine=eng, api_key="", rate_limit=2))
+    body = {"text": "Merhaba dünya", "source": "tr", "target": "en"}
+    assert client.post("/v1/translate", json=body).status_code == 200
+    assert client.post("/v1/translate", json=body).status_code == 200
+    res = client.post("/v1/translate", json=body)
+    assert res.status_code == 429 and int(res.headers["Retry-After"]) > 0
+    assert client.get("/v1/health").status_code == 200   # health is never limited
+
+
+def test_router_prefers_quality_and_respects_ram(monkeypatch):
+    fast = FakeBackend("opus", {("tr", "en"): {"Merhaba dünya": "fast"}})
+    good = FakeBackend("gemma-q4", {("tr", "en"): {"Merhaba dünya": "good"}})
+    huge = FakeBackend("madlad", {("tr", "en"): {"Merhaba dünya": "huge"}})
+    fast.ram_mb, good.ram_mb, huge.ram_mb = 600, 3500, 6500
+    e = Engine(backends=[fast, good, huge], checker=FakeChecker())
+    monkeypatch.setenv("GLYPHBRIDGE_RAM_BUDGET_MB", "4000")
+    monkeypatch.delenv("GLYPHBRIDGE_PREFER", raising=False)
+    assert [b.name for b in e._ordered()] == ["opus", "gemma-q4", "madlad"]
+    monkeypatch.setenv("GLYPHBRIDGE_PREFER", "quality")
+    assert e.translate("Merhaba dünya", "en", "tr").translation == "good"
+    monkeypatch.setenv("GLYPHBRIDGE_RAM_BUDGET_MB", "3000")   # gemma no longer fits
+    assert [b.name for b in e._ordered()] == ["opus", "gemma-q4", "madlad"]  # both big cards go last
+
+
+def test_result_cache_translates_repeats_once():
+    calls = []
+
+    class Counting(FakeBackend):
+        def translate(self, texts, s, t):
+            calls.append(list(texts))
+            return super().translate(texts, s, t)
+
+    e = Engine(backends=[Counting("opus", OPUS.table)], checker=FakeChecker())
+    out = e.translate_batch(["Merhaba dünya", "Nasılsın?", "Merhaba dünya"], target="en", source="tr")
+    assert [r.translation for r in out] == ["Hello world", "How are you?", "Hello world"]
+    assert calls == [["Merhaba dünya", "Nasılsın?"]]          # the repeat was not translated again
+    e.translate_batch(["Nasılsın?"], target="en", source="tr")
+    assert len(calls) == 1                                       # served from the cache
+
+
+def test_consistency_catches_numbers_and_names():
+    from glyphbridge.checker import consistency
+    assert consistency("Toplantı 14:30'da, 1.500 kişi.", "The meeting is at 14:30, 1,500 people.") == []
+    assert consistency("Fiyat 250 lira.", "The price is 25 lira.") == ["number 250 missing"]
+    assert consistency("Dün Ahmet'in evine gittik.", "Yesterday we went to Ahmet's house.") == []
+    assert consistency("Dün Ahmet'in evine gittik.", "Yesterday we went to his house.") == ["name Ahmet missing"]
+    assert consistency("Москва большая.", "Moscow is big.") == []          # different scripts: names skipped
+
+
+def test_engine_flags_wrong_number_even_with_high_similarity():
+    wrong = FakeBackend("opus", {("tr", "en"): {"250 lira": "25 lira"}})
+    right = FakeBackend("madlad", {("tr", "en"): {"250 lira": "250 lira"}})
+    r = Engine(backends=[wrong, right], checker=FakeChecker()).translate("250 lira", "en", "tr")
+    assert r.translation == "250 lira" and not r.flagged and r.model == "madlad:tr-en"
+    r = Engine(backends=[wrong], checker=FakeChecker()).translate("250 lira", "en", "tr")
+    assert r.flagged and r.issues == ["number 250 missing"]
+
+
+def test_all_non_opus_cards_are_pinned():
+    from glyphbridge.cards import CARDS
+    for card in CARDS.values():
+        assert card.revision and len(card.revision) == 40, card.id
+
+
+def test_card_licenses_allow_free_commercial_use():
+    """Default cards must be usable commercially; opt-in cards may carry model terms."""
+    from glyphbridge.cards import CARDS
+    open_licenses = {"Apache-2.0", "MIT", "CC-BY-4.0", "BSD-3-Clause"}
+    opt_in = {"gemma", "gemma-q4"}        # Gemma terms: allow commercial use with a use policy
+    for card in CARDS.values():
+        assert card.license in open_licenses or card.id in opt_in, (card.id, card.license)
+        assert "NC" not in card.license and "GPL" not in card.license, card.id
