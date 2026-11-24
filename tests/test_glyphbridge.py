@@ -224,3 +224,21 @@ def test_image_ocr_path(eng, tmp_path, monkeypatch):
     out, results = documents.translate_file(str(img), target="en", source="tr")
     assert out.endswith("photo.en.txt")
     assert open(out, encoding="utf-8").read().startswith("Hello world")
+
+
+def test_audio_translation(eng, tmp_path, monkeypatch, capsys):
+    from glyphbridge import speech
+    monkeypatch.setattr(speech, "transcribe", lambda path, source="auto": "Nasılsın? Nasılsın?")
+    spoken = {}
+    monkeypatch.setattr(speech, "speak", lambda text, lang, out: spoken.update(text=text, lang=lang, out=out) or out)
+    audio = tmp_path / "talk.wav"
+    audio.write_bytes(b"")
+    assert cli.main(["translate", "--file", str(audio), "--from", "tr", "--to", "en", "--speak"]) == 0
+    out = (tmp_path / "talk.en.txt").read_text(encoding="utf-8")
+    assert "How are you? How are you?" in out and "Nasılsın? Nasılsın?" in out
+    assert spoken["lang"] == "en" and spoken["out"].endswith("talk.en.wav")
+
+
+def test_sentence_split():
+    from glyphbridge.speech import _split_sentences
+    assert _split_sentences("Bir. İki? Üç") == ["Bir.", " İki?", " Üç"]
