@@ -550,7 +550,8 @@ def test_translation_memory_rejects_bad_rows(tmp_path):
 def test_cli_memory_option_sets_env(tmp_path, monkeypatch):
     from glyphbridge import cli
     import os
-    monkeypatch.delenv("GLYPHBRIDGE_MEMORY", raising=False)
+    monkeypatch.setenv("GLYPHBRIDGE_MEMORY", "")   # so monkeypatch restores it after main() writes it
+    monkeypatch.delenv("GLYPHBRIDGE_MEMORY")
     monkeypatch.setattr(cli, "cmd_translate", lambda args: 0, raising=False)
     parser = cli.build_parser()
     args = parser.parse_args(["translate", "x", "--to", "en", "--memory", "a.tsv", "--memory", "b.tsv"])
@@ -568,3 +569,69 @@ def test_opus_group_model_serves_latin_to_english_only():
     assert g._names("la", "en") == ["Helsinki-NLP/opus-mt-itc-en"]
     assert g._names("la", "de") == [] and g._names("tr", "en") == []
     assert "Helsinki-NLP/opus-mt-itc-en" not in OpusBackend(ModelCache(budget_mb=1))._names("la", "en")
+
+
+class FakeEmotion:
+    """Tone from keywords: 'love/Hello' positive, 'hate/BAD' negative."""
+    def __init__(self):
+        from glyphbridge.emotion import Emotion
+        self._real = Emotion()
+
+    def enabled(self):
+        return True
+
+    def labels(self, texts):
+        def one(t):
+            low = t.lower()
+            if "hate" in low or "nefret" in low or "bad" in low:
+                return ("negative", 0.95)
+            if "love" in low or "seviyorum" in low or "hello" in low or "merhaba" in low:
+                return ("positive", 0.95)
+            return ("neutral", 0.9)
+        return [one(t) for t in texts]
+
+    def flipped(self, a, b):
+        return self._real.flipped(a, b)
+
+
+def test_emotion_module_flags_tone_flip_and_tries_next_card():
+    flipper = FakeBackend("flipper", {("tr", "en"): {"Seni seviyorum": "I hate you"}})
+    good = FakeBackend("good", {("tr", "en"): {"Seni seviyorum": "I love you"}})
+    e = Engine(backends=[flipper, good], checker=FakeChecker(), memory=None, emotion=FakeEmotion())
+    r = e.translate("Seni seviyorum", target="en", source="tr")
+    assert r.translation == "I love you" and r.model == "good:tr-en" and r.tone == "positive"
+    assert r.attempts == ["flipper:tr-en", "good:tr-en"]
+
+
+def test_emotion_flip_rules():
+    from glyphbridge.emotion import Emotion
+    em = Emotion()
+    assert em.flipped(("positive", 0.9), ("negative", 0.8)) == "tone changed: positive -> negative"
+    assert em.flipped(("positive", 0.9), ("neutral", 0.99)) is None      # softer is not a flip
+    assert em.flipped(("positive", 0.55), ("negative", 0.9)) is None     # unsure source
+    assert em.flipped(None, ("negative", 0.9)) is None
+
+
+def test_emotion_module_is_off_without_card(monkeypatch):
+    from glyphbridge import cards
+    from glyphbridge.emotion import Emotion
+    monkeypatch.delenv("GLYPHBRIDGE_EMOTION", raising=False)
+    monkeypatch.setattr(cards, "is_installed", lambda repo, cached=None: False)
+    assert Emotion().labels(["x", "y"]) == [None, None]
+    monkeypatch.setenv("GLYPHBRIDGE_EMOTION", "0")
+    monkeypatch.setattr(cards, "is_installed", lambda repo, cached=None: True)
+    assert not Emotion().enabled()
+
+
+def test_hymt2_card_is_pinned_and_off_by_default(monkeypatch):
+    from glyphbridge import backends as bk
+    from glyphbridge.cards import CARDS
+    c = CARDS["hymt2-q4"]
+    assert c.license == "Apache-2.0" and len(c.revision) == 40 and c.sha256
+    monkeypatch.delenv("GLYPHBRIDGE_ENABLE_HYMT", raising=False)
+    monkeypatch.setattr(bk, "is_installed", lambda repo, cached=None: False)
+    b = bk.HyMT2Q4Backend(bk.ModelCache(budget_mb=100000))
+    assert not b.supports("tr", "en")
+    monkeypatch.setenv("GLYPHBRIDGE_ENABLE_HYMT", "1")
+    assert b.supports("tr", "en") and not b.supports("la", "en")
+    assert "into Turkish" in b.prompt("Hello", "tr")
