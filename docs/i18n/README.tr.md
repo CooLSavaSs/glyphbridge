@@ -72,7 +72,23 @@ Glyphbridge kendini kanıtlamış açık modelleri kullanır. Bir **yönlendiric
 
 *Ölçüldü* yazan RAM değerleri, CI'da CPU üzerinde çeviri yapan bir sürecin tamamının (Python, kütüphaneler ve model) tepe değeridir; diğerleri tahmindir. Aralık, iki CI çalışmasının farklı tepe değerler verdiğini gösterir; yönlendirici yüksek olanla plan yapar. 8 GB'lık bir bilgisayarda 8 GB kartları sığar ama başka programlara az yer kalır.
 
-**Şu ana kadarki kalite** (golden-v1: elle hazırlanmış küçük bir kontrol seti, benchmark değil): Opus-MT Türkçe→İngilizce'de chrF **75,6**, İngilizce→Türkçe'de **76,8** alıyor. İsimler, sayılar, olumsuzluk ve teknik metin iyi; deyimler zayıf (chrF 22–28) ve sıradaki iyileştirme konusu. Latincede MADLAD regresyon örneği *Gallia est omnis divisa in partes tres*'i yanlış çeviriyor (chrF 38,7), TranslateGemma 4-bit (`gemma-q4`) ise **84,9** alıyor; bu yüzden Latince artık kuruluysa `gemma-q4`'e gidiyor. Türkçede `gemma-q4` Opus-MT'den düşük puan aldı (68,6 / 64,4), bu yüzden Opus-MT önde kalıyor. `gemma-q4` yoksa Latince, Apache lisanslı Opus-MT İtalik grup modeline (`opus-mt-itc-en`, chrF **61,1**) gidiyor. Yönlendirici sırasını tahminler değil bu ölçümler belirliyor. Daha büyük bir set olan **golden-v2** (230 cümle, 9 dil çifti; Almanca, Fransızca, İspanyolca, Rusça, Arapça ve Çince→İngilizce de eklendi) CI'da şimdilik yalnızca rapor modunda çalışıyor. İlk puanları buraya yazılacak, eşik ondan sonra konacak.
+**Şu ana kadarki kalite** (golden-v1: elle hazırlanmış küçük bir kontrol seti, benchmark değil): Opus-MT Türkçe→İngilizce'de chrF **75,6**, İngilizce→Türkçe'de **76,8** alıyor. İsimler, sayılar, olumsuzluk ve teknik metin iyi; deyimler zayıf (chrF 22–28) ve sıradaki iyileştirme konusu. Latincede MADLAD regresyon örneği *Gallia est omnis divisa in partes tres*'i yanlış çeviriyor (chrF 38,7), TranslateGemma 4-bit (`gemma-q4`) ise **84,9** alıyor; bu yüzden Latince artık kuruluysa `gemma-q4`'e gidiyor. Türkçede `gemma-q4` Opus-MT'den düşük puan aldı (68,6 / 64,4), bu yüzden Opus-MT önde kalıyor. `gemma-q4` yoksa Latince, Apache lisanslı Opus-MT İtalik grup modeline (`opus-mt-itc-en`, chrF **61,1**) gidiyor. Yönlendirici sırasını tahminler değil bu ölçümler belirliyor.
+
+**golden-v2** (230 cümle, 9 dil çifti, yalnız rapor; ilk ölçüm CI #96). Dil çiftine göre chrF:
+
+| çift | Opus-MT (varsayılan) | Hy-MT2 4-bit | TranslateGemma 4-bit |
+|---|---|---|---|
+| tr→en (62) | **73,2** | 70,6 | 69,0 |
+| en→tr (45) | **76,8** | **76,8** | 68,7 |
+| de→en (15) | **85,6** | 80,1 | – |
+| fr→en (15) | **80,1** | 76,5 | – |
+| es→en (15) | 86,9 | **88,9** | – |
+| ru→en (15) | 74,8 | **80,8** | – |
+| ar→en (13) | **1,3 (bozuk)** | **90,5** | – |
+| zh→en (15) | 58,3 | **86,5** | – |
+| la→en (25) | 49,5 (opus-group) | – | **75,1** |
+
+Büyük setin değiştirdiği: golden-v1'de (18 cümle) Hy-MT2 tr→en'de Opus-MT'yi geçiyordu (79,6'ya 75,6); 62 cümlede Opus-MT önde (73,2'ye 70,6). Yani küçük set yanıltıyordu. İki gerçek hata çıktı: varsayılan Opus-MT `ar-en` yolu kullanılamaz çıktı veriyor (13 cümlenin hepsi işaretli) ve isim/sayı denetimi Almancada yanlış alarm veriyor (15'in 14'ü; Almanca bütün isimleri büyük harfle yazar). Deyimler her modelde en zayıf kategori (Opus-MT'de chrF 11–42).
 
 **Hy-MT2** (Tencent; Hugging Face'te en çok beğenilen çeviri modeli) Türkçe↔İngilizce için şimdiye kadar ölçülen en iyi kart: chrF **79,6** / **77,9** (Opus-MT 75,6 / 76,8), deyimlerde 46,8 (Opus-MT 28,4), tepe RAM 2,2 GB. Kurulunca (`glyphbridge cards install hymt2-q4`) ilk o denenir.
 
