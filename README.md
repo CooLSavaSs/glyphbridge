@@ -70,12 +70,20 @@ Glyphbridge builds on proven open models instead of starting from zero. A **rout
 | Rare languages, full size *(opt-in)* | MADLAD-400 3B (`madlad`) | 400+ (Latin, Syriac, ...) | Apache 2.0 | **6.5 GB measured** |
 | Language detection | GlotLID (`lid`) | 1,600+ | Apache 2.0 | small |
 | Meaning checker | LaBSE (`checker`) | 109 | Apache 2.0 | ~1 GB |
+| **Best measured, 8 GB PCs** *(install to turn on)* | Tencent Hy-MT2 1.8B 4-bit GGUF (`hymt2-q4`) | 36 (incl. Turkish) | Apache 2.0 | **2.2 GB measured** (peak) |
+| Emotion module *(install to turn on)* | multilingual DistilBERT sentiment (`emotion`) | multilingual | Apache 2.0 | **0.8 GB measured** |
 
 RAM figures marked *measured* are the peak of a whole process (Python, libraries and the model) translating on CPU in CI; unmarked ones are estimates. A range means two CI runs gave different peaks; the router plans with the higher one. On an 8 GB PC the 8 GB cards fit, but leave little room for other programs.
 
 **Quality so far** (golden-v1, a small hand-made sanity set, not a benchmark): Opus-MT reaches chrF **75.6** for Turkish→English and **76.8** for English→Turkish. Names, numbers, negation and technical text score well; idioms are weak (chrF 22–28) and are the next thing to improve. For Latin, MADLAD gets the regression case *Gallia est omnis divisa in partes tres* wrong (chrF 38.7), while TranslateGemma 4-bit (`gemma-q4`) scores **84.9**, so Latin now goes to `gemma-q4` when it is installed. For Turkish, `gemma-q4` scored lower than Opus-MT (68.6 / 64.4), so Opus-MT stays first. Without `gemma-q4`, Latin goes to the Apache-licensed Opus-MT Italic group model (`opus-mt-itc-en`, chrF **61.1**). Numbers like these, not guesses, decide the router order.
 
-Not used by default because their licenses forbid commercial use or exclude regions: NLLB-200 (CC-BY-NC), Cohere North Small Translate (CC-BY-NC), Tencent Hy-MT2 (community license, excludes the EU).
+Not used by default because their licenses forbid commercial use or exclude regions: NLLB-200 (CC-BY-NC), Cohere North Small Translate (CC-BY-NC). (Tencent Hy-MT2 used to be in this list; it is Apache 2.0 now and is the `hymt2-q4` card.)
+
+**Hy-MT2** (Tencent, the most-liked translation model on Hugging Face) is the best card measured so far for Turkish↔English: chrF **79.6** / **77.9** against Opus-MT's 75.6 / 76.8, idioms 46.8 against 28.4, at 2.2 GB peak RAM. Once installed (`glyphbridge cards install hymt2-q4`) it is tried first.
+
+### Emotion module: keep the tone
+
+The `emotion` card reads the tone of the source and of every translation (positive, neutral or negative). If a clearly positive sentence comes back clearly negative, or the other way round, the translation is flagged (`tone changed: positive -> negative`) and the next card is tried. Results carry the source tone in `tone`. It is a card like the others: `glyphbridge cards install emotion`, about 0.8 GB RAM, loaded only while checking; `GLYPHBRIDGE_EMOTION=0` turns it off.
 
 ### Translation memory: pin your own translations
 
