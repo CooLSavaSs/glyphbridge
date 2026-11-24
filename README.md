@@ -61,15 +61,19 @@ Everything is self-hosted and free. API keys protect your server when you expose
 
 Glyphbridge builds on proven open models instead of starting from zero. A **router** picks the best model for each language pair, and a **meaning checker** compares every translation with its original: if they don't match, the sentence goes to the next model; if nothing passes, it is marked ⚠ next to the original.
 
-| Role | Model (card) | Languages | License | RAM (est.) |
+| Role | Model (card) | Languages | License | RAM |
 |---|---|---|---|---|
 | Fast path | Opus-MT / tc-big (`opus:<src>-<tgt>`) | one pair per card | CC-BY 4.0 | ~600 MB |
-| Best quality, **8 GB PCs** *(opt-in)* | TranslateGemma 4B 4-bit GGUF (`gemma-q4`) | ~55 evaluated | Gemma terms | ~3.5 GB (est.) |
-| Rare languages, **8 GB PCs** | MADLAD-400 3B int8 CTranslate2 (`madlad-int8`) | 400+ | Apache 2.0 | ~3.5 GB (est.) |
+| Best quality, **8 GB PCs** *(opt-in)* | TranslateGemma 4B 4-bit GGUF (`gemma-q4`) | ~55 evaluated | Gemma terms | **4.6 GB measured** (peak) |
+| Rare languages, **8 GB PCs** | MADLAD-400 3B int8 CTranslate2 (`madlad-int8`) | 400+ | Apache 2.0 | **5.5 GB measured** (peak) |
 | Best quality, full size *(opt-in)* | TranslateGemma 4B (`gemma`) | ~55 evaluated, ~500 pairs trained; also images | Gemma terms | ~9 GB (est.) |
 | Rare languages, full size *(opt-in)* | MADLAD-400 3B (`madlad`) | 400+ (Latin, Syriac, ...) | Apache 2.0 | **6.5 GB measured** |
 | Language detection | GlotLID (`lid`) | 1,600+ | Apache 2.0 | small |
 | Meaning checker | LaBSE (`checker`) | 109 | Apache 2.0 | ~1 GB |
+
+RAM figures marked *measured* are the peak of a whole process (Python, libraries and the model) translating on CPU in CI; unmarked ones are estimates. On an 8 GB PC the 8 GB cards fit, but leave little room for other programs.
+
+**Quality so far** (golden-v1, a small hand-made sanity set, not a benchmark): Opus-MT reaches chrF **75.6** for Turkish→English and **76.8** for English→Turkish. Names, numbers, negation and technical text score well; idioms are weak (chrF 22–28) and are the next thing to improve. The Latin regression case *Gallia est omnis divisa in partes tres* is still translated wrongly by MADLAD; it stays in the set until a card gets it right.
 
 Not used by default because their licenses forbid commercial use or exclude regions: NLLB-200 (CC-BY-NC), Cohere North Small Translate (CC-BY-NC), Tencent Hy-MT2 (community license, excludes the EU).
 
