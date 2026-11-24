@@ -8,7 +8,7 @@
 
 ## Warum Glyphbridge?
 
-- **Für immer kostenlos** – Open Source unter Apache-2.0-Lizenz, ohne Konto oder API-Schlüssel.
+- **Für immer kostenlos** – Open Source unter Apache-2.0-Lizenz, ohne Registrierung; API-Schlüssel nur, wenn du deinen eigenen Server freigibst.
 - **Privat und offline** – alles läuft auf deinem eigenen Computer; deine Dokumente verlassen ihn nie.
 - **Leicht** – ausgelegt für einen normalen PC mit **8 GB RAM**, ohne GPU.
 - **Ehrlich bei der Qualität** – jede Übersetzung hat einen **Konfidenzwert**, und wir veröffentlichen gemessene Qualität (COMET / chrF) pro Sprachpaar.
@@ -23,6 +23,18 @@
 | **v0.3** | **Sprach**übersetzung: Sprache → Text → Übersetzung → Sprache | 📋 Geplant |
 | **v0.4** | **Osmanisch-Türkisch**: OCR für Druck- und Handschrift (Rika, Divani), Transliteration, modernes Türkisch | 📋 Geplant |
 | **Experimentell** | **Ägyptische Hieroglyphen** und **Keilschrift** (Akkadisch, Sumerisch) – gemeinsam mit Forschenden | 🔬 Forschung |
+
+## Überall nutzbar (geplant)
+
+| Schnittstelle | Beispiel |
+|---|---|
+| Python-Bibliothek | `glyphbridge.translate("Merhaba", to="en")` |
+| Kommandozeile | `glyphbridge translate file.pdf --to de` |
+| REST-API | `glyphbridge serve` → `POST /v1/translate` (optionaler API-Schlüssel) |
+| KI-Agenten (MCP) | Als Werkzeug in Claude und anderen KI-Assistenten nutzen |
+| OpenAI-kompatibler Endpunkt | Ohne Codeänderung an bestehende KI-Tools anbinden |
+
+Alles ist selbst gehostet und kostenlos. API-Schlüssel schützen deinen Server, wenn du ihn im Netzwerk freigibst.
 
 ## Mitmachen
 
