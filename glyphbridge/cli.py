@@ -2,6 +2,8 @@
 
     glyphbridge translate "Merhaba dünya" --to en
     glyphbridge translate --file notes.txt --from tr --to de
+    glyphbridge translate --file report.docx --to en        # -> report.en.docx
+    glyphbridge translate --file photo.jpg --from tr --to en  # OCR, -> photo.en.txt
     echo "Hola" | glyphbridge translate --to en --json
     glyphbridge serve --port 8080 --api-key "$GLYPHBRIDGE_API_KEY"
     glyphbridge mcp
@@ -21,7 +23,27 @@ from . import __version__
 from .engine import SUPPORTED_LANGUAGES, TranslationError, get_engine
 
 
+DOC_EXTS = {".docx", ".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
+
+
+def _cmd_translate_file(args: argparse.Namespace) -> int:
+    from .documents import translate_file
+    try:
+        out, results = translate_file(args.file, target=args.to, source=args.source, out=args.output)
+    except (TranslationError, RuntimeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    flagged = [r for r in results if r.flagged]
+    print(f"\u2713 {len(results)} segments translated -> {out}")
+    if flagged:
+        print(f"\u26a0 {len(flagged)} segments have low confidence; check them against the original.",
+              file=sys.stderr)
+    return 0
+
+
 def _cmd_translate(args: argparse.Namespace) -> int:
+    if args.file and (args.output or os.path.splitext(args.file)[1].lower() in DOC_EXTS):
+        return _cmd_translate_file(args)
     if args.file:
         with open(args.file, encoding="utf-8") as fh:
             text = fh.read()
@@ -129,7 +151,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     t = sub.add_parser("translate", help="Translate text or a text file")
     t.add_argument("text", nargs="*", help="Text to translate")
-    t.add_argument("--file", "-f", help="Read text from a file")
+    t.add_argument("--file", "-f", help="Translate a file: .txt, .md, .docx, .pdf or an image (OCR)")
+    t.add_argument("--output", "-o", help="Where to write the translated file (default: name.<lang>.ext)")
     t.add_argument("--from", dest="source", default="auto", help="Source language code (default: auto)")
     t.add_argument("--to", "-t", required=True, help="Target language code")
     t.add_argument("--json", action="store_true", help="Print JSON with confidence scores")
