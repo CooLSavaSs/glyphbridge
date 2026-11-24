@@ -23,7 +23,7 @@ High-quality translation today is mostly paid, online and closed. Glyphbridge ai
 | Version | Feature | Status |
 |---|---|---|
 | **v0.1** | Text translation with a model router (Opus-MT → TranslateGemma → MADLAD-400), meaning checker, install-only-what-you-need model cards, CLI, REST API with API keys, MCP server | 🧪 Preview |
-| **v0.2** | Translate text in **images** (OCR) and **documents** (PDF, DOCX) while keeping the layout; confidence score filter | 📋 Planned |
+| **v0.2** | **Documents**: DOCX translated in place (headings, lists, tables kept), PDF text layer → text, TXT/MD; **images** via Tesseract OCR. Next: PDF layout, trimmed int8 cards | 🧪 Partly in preview |
 | **v0.3** | **Speech** translation: speech → text → translation → speech | 📋 Planned |
 | **v0.4** | **Ottoman Turkish**: printed & handwritten (rika, divani) OCR, transliteration, modern Turkish | 📋 Planned |
 | **Experimental** | **Egyptian hieroglyphs** and **cuneiform** (Akkadian, Sumerian) — in collaboration with researchers | 🔬 Research |
@@ -108,6 +108,8 @@ pip install "glyphbridge[all] @ git+https://github.com/CooLSavaSs/glyphbridge"
 ```bash
 glyphbridge translate "Merhaba dünya" --from tr --to en
 glyphbridge translate --file notes.txt --from tr --to de --json   # with confidence scores
+glyphbridge translate --file report.docx --to en                 # -> report.en.docx
+glyphbridge translate --file photo.jpg --from tr --to en          # OCR -> photo.en.txt
 glyphbridge languages
 ```
 
