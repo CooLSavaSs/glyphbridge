@@ -64,8 +64,14 @@ A pull request that adds or changes a card fills in this table in its descriptio
 | Quality | `scripts/golden.py` result (chrF per category) against the current default card |
 | 8 GB fit | Does it run next to the OS and a browser on an 8 GB PC? If not, it is opt-in |
 
-The golden set is versioned (`tests/golden/v1` = golden-v1). Do not change a released set;
-add new sentences in a new version so scores stay comparable.
+The golden set is versioned (`tests/golden/v1` = golden-v1, `tests/golden/v2` = golden-v2).
+Do not change a released set; add new sentences in a new version so scores stay comparable.
+golden-v2 keeps every v1 row unchanged and adds new rows (230 sentences, 9 language pairs:
+tr-en, en-tr, la-en, de-en, fr-en, es-en, ru-en, ar-en, zh-en). A test checks this.
+
+**Native speakers wanted:** each sentence has one hand-written reference. If you speak one
+of these languages and a reference reads unnaturally, open an issue; fixes go into the next
+version, never into a released one.
 
 ### How cards are chosen
 
