@@ -270,3 +270,22 @@ def test_openai_compatible_endpoint(eng):
     assert client.post("/v1/chat/completions", json=body).status_code == 401
     bad = dict(body, model="gpt-4o")
     assert client.post("/v1/chat/completions", json=bad, headers=h).status_code == 400
+
+
+def test_unknown_probability_is_none_without_checker():
+    nop = FakeBackend("gemma-q4", {("tr", "en"): {"Merhaba dünya": "Hello world"}}, prob=None)
+    r = Engine(backends=[nop], checker=FakeChecker(enabled=False)).translate("Merhaba dünya", "en", "tr")
+    assert r.translation == "Hello world" and r.confidence is None
+
+
+def test_gemma_prompt_format():
+    from glyphbridge.backends import gemma_prompt
+    p = gemma_prompt("Merhaba", "tr", "en")
+    assert p.startswith("<start_of_turn>user\n") and p.endswith("<start_of_turn>model\n")
+    assert "Turkish (tr) to English (en)" in p and "Merhaba" in p
+
+
+def test_small_cards_are_default_order(monkeypatch):
+    from glyphbridge.backends import default_backends
+    monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
+    assert [b.name for b in default_backends()] == ["opus", "gemma-q4", "gemma", "madlad-int8", "madlad"]
