@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import hmac
 import os
-from typing import List, Optional
+import time
+import uuid
+from typing import List, Optional, Union
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -68,4 +70,59 @@ def create_app(engine: Optional[Engine] = None, api_key: Optional[str] = None) -
             return results[0].to_dict()
         return {"results": [r.to_dict() for r in results]}
 
+    # -- OpenAI-compatible endpoint ---------------------------------------
+    # Lets tools that speak the OpenAI Chat Completions API use Glyphbridge with no
+    # code changes: set base_url to http://host:8080/v1 and model to
+    # "glyphbridge-<target>" (e.g. "glyphbridge-en"). The last user message is
+    # translated; the reply is the translation.
+
+    @app.get("/v1/models", dependencies=[Depends(auth)])
+    def models():
+        return {"object": "list", "data": [
+            {"id": f"glyphbridge-{code}", "object": "model", "owned_by": "glyphbridge"}
+            for code in SUPPORTED_LANGUAGES]}
+
+    @app.post("/v1/chat/completions", dependencies=[Depends(auth)])
+    def chat_completions(req: ChatRequest, eng: Engine = Depends(engine_dep)):
+        if not req.model.startswith("glyphbridge-"):
+            raise HTTPException(status_code=400, detail="model must be 'glyphbridge-<target language>'")
+        target = req.model[len("glyphbridge-"):]
+        user = [m for m in req.messages if m.role == "user"]
+        if not user or not _content_text(user[-1].content).strip():
+            raise HTTPException(status_code=422, detail="Send at least one user message with text")
+        text = _content_text(user[-1].content)
+        if len(text) > MAX_CHARS:
+            raise HTTPException(status_code=413, detail=f"At most {MAX_CHARS} characters")
+        try:
+            r = eng.translate(text, target=target, source=req.source or "auto")
+        except TranslationError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {
+            "id": f"chatcmpl-{uuid.uuid4().hex[:24]}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": req.model,
+            "choices": [{"index": 0, "finish_reason": "stop",
+                         "message": {"role": "assistant", "content": r.translation}}],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "glyphbridge": r.to_dict(),
+        }
+
     return app
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: Union[str, List[dict]]
+
+
+class ChatRequest(BaseModel):
+    model: str
+    messages: List[ChatMessage]
+    source: Optional[str] = Field(None, description="Glyphbridge extension: source language code.")
+
+
+def _content_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    return " ".join(part.get("text", "") for part in content if isinstance(part, dict))
