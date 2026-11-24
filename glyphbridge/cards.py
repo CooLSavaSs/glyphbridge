@@ -55,6 +55,18 @@ CARDS: Dict[str, Card] = {
                     revision="b4a4747a01c36cadf60238985cd31dc6ea66b760",
                     sha256=(("translategemma-4b-it.Q4_K_M.gguf",
                              "81200d03e843d2ec1ece6eeafe7d13cb6e5211e1fcd336ade55790b683a08330"),)),
+    "hymt2-q4": Card("hymt2-q4", "Hy-MT2 1.8B 4-bit — 36 languages, small and fast (experimental)",
+                     "tencent/Hy-MT2-1.8B-GGUF", 2000, "~1.1 GB", "Apache-2.0",
+                     "Official Q4_K_M GGUF run with llama.cpp. RAM is an estimate until measured.",
+                     revision="a0c709d9fac510f2c807aa3af52872340dc37a4a",
+                     sha256=(("Hy-MT2-1.8B-Q4_K_M.gguf",
+                              "dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699"),)),
+    "emotion": Card("emotion", "Emotion module — keeps the tone (positive / neutral / negative)",
+                    "lxyuan/distilbert-base-multilingual-cased-sentiments-student", 700, "~0.55 GB",
+                    "Apache-2.0", "Flags translations whose tone flips, e.g. a kind sentence that turns negative.",
+                    revision="cf991100d706c13c0a080c097134c05b7f436c45",
+                    sha256=(("model.safetensors",
+                             "0ab095b69033944004bb7a6ffcbfc2d77a240dd0f71c27820aa73efa71f664fe"),)),
     "madlad": Card("madlad", "MADLAD-400 3B full size — opt-in, needs ~8 GB free RAM",
                    "google/madlad400-3b-mt", 6500, "~12 GB", "Apache-2.0",
                    "Loaded in bfloat16 (6.5 GB measured). Prefer madlad-int8 on 8 GB PCs.",
@@ -158,10 +170,10 @@ def install(card_id: str) -> str:
             except Exception as exc:  # try the base model next
                 last = exc
         raise RuntimeError(f"No Opus-MT model for {card_id}: {last}")
-    if card_id == "gemma-q4":  # the repo also holds a 12B file; fetch only the 4B one
-        from .backends import GemmaQ4Backend
-        path = snapshot_download(GemmaQ4Backend.repo, allow_patterns=[GemmaQ4Backend.filename],
-                                 revision=GemmaQ4Backend.revision)
+    if card_id in ("gemma-q4", "hymt2-q4"):  # GGUF repos hold several sizes; fetch only ours
+        card = resolve(card_id)
+        path = snapshot_download(card.repo, allow_patterns=[f for f, _ in card.sha256],
+                                 revision=card.revision)
         verify(card_id)
         return path
     card = resolve(card_id)

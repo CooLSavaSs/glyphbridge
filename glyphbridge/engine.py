@@ -28,6 +28,7 @@ import unicodedata
 from . import cards, lid
 from .backends import Backend, BackendUnavailable, default_backends
 from .checker import Checker, consistency
+from .emotion import Emotion
 from .memory import Memory
 
 log = logging.getLogger("glyphbridge")
@@ -61,6 +62,7 @@ class TranslationResult:
     similarity: Optional[float] = None
     attempts: List[str] = field(default_factory=list)
     issues: List[str] = field(default_factory=list)
+    tone: Optional[str] = None   # source tone from the emotion module, when it is on
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -68,13 +70,15 @@ class TranslationResult:
 
 class Engine:
     def __init__(self, backends: Optional[List[Backend]] = None, checker: Optional[Checker] = None,
-                 memory: Optional[Memory] = None):
+                 memory: Optional[Memory] = None, emotion: Optional[Emotion] = None):
         if cards.offline():
             os.environ["HF_HUB_OFFLINE"] = "1"  # use installed cards only, never download
         self.backends = backends if backends is not None else default_backends()
         self.checker = checker if checker is not None else Checker()
         # Your own fixed translations (idioms, terms), used before any model.
         self.memory = memory if memory is not None else Memory.from_env()
+        # Emotion module card: flags translations whose tone flips.
+        self.emotion = emotion if emotion is not None else Emotion()
         # Results cache: a sentence repeated in a document is translated only once.
         self._cache: "OrderedDict[tuple, TranslationResult]" = OrderedDict()
         self.cache_size = int(os.environ.get("GLYPHBRIDGE_RESULT_CACHE", "2048"))
@@ -88,7 +92,7 @@ class Engine:
                             or getattr(b, "model_id", None)) for b in self.backends)
         return (cards_used, os.environ.get("GLYPHBRIDGE_PREFER", "speed"),
                 getattr(self.checker, "threshold", None), cards.ram_budget_mb(),
-                self.memory.fingerprint())
+                self.memory.fingerprint(), self.emotion.enabled())
 
     def _ordered(self) -> List[Backend]:
         """Backends in the order to try them.
@@ -184,6 +188,7 @@ class Engine:
 
         best: List[Optional[TranslationResult]] = [None] * len(texts)
         pending = list(range(len(texts)))
+        tones = self.emotion.labels(texts)
         for route in routes:
             if not pending:
                 break
@@ -192,15 +197,20 @@ class Engine:
             except BackendUnavailable:
                 continue
             sims = self.checker.similarity([texts[i] for i in pending], outs)
+            out_tones = self.emotion.labels(outs) if any(tones) else [None] * len(outs)
             still = []
-            for i, out, prob, sim in zip(pending, outs, probs, sims):
+            for i, out, prob, sim, out_tone in zip(pending, outs, probs, sims, out_tones):
                 conf = sim if sim is not None else prob
                 issues = consistency(texts[i], out)
+                flip = self.emotion.flipped(tones[i], out_tone)
+                if flip:
+                    issues.append(flip)
                 ok = self.checker.passes(sim) and not issues
                 prev = best[i]
                 attempts = (prev.attempts if prev else []) + [label]
                 cand = TranslationResult(out, source, target, None if conf is None else round(conf, 4), label,
-                                         flagged=not ok, similarity=sim, attempts=attempts, issues=issues)
+                                         flagged=not ok, similarity=sim, attempts=attempts, issues=issues,
+                                         tone=tones[i][0] if tones[i] else None)
                 better = (len(cand.issues), -(cand.confidence or 0)) < (len(prev.issues), -(prev.confidence or 0)) if prev else True
                 if prev is None or ok or better:
                     best[i] = cand

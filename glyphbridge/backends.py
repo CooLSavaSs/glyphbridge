@@ -339,6 +339,8 @@ LANG_NAMES = {
     "ro": "Romanian", "ru": "Russian", "sk": "Slovak", "sl": "Slovenian", "sr": "Serbian",
     "sv": "Swedish", "sw": "Swahili", "ta": "Tamil", "te": "Telugu", "th": "Thai", "tr": "Turkish",
     "uk": "Ukrainian", "ur": "Urdu", "vi": "Vietnamese", "zh": "Chinese", "zu": "Zulu",
+    "bo": "Tibetan", "kk": "Kazakh", "km": "Khmer", "mn": "Mongolian", "ms": "Malay", "my": "Burmese",
+    "tl": "Filipino", "ug": "Uyghur",
 }
 
 
@@ -398,6 +400,59 @@ class GemmaQ4Backend(Backend):
         return out
 
 
+# Languages Hy-MT2 was trained on (model card of tencent/Hy-MT2-1.8B).
+HYMT2_LANGS = ("zh en fr pt es ja tr ru ar ko th it de vi ms id tl hi pl cs nl km my fa gu ur te mr "
+               "he bn ta uk bo kk mn ug").split()
+
+
+class HyMT2Q4Backend(Backend):
+    """Tencent Hy-MT2 1.8B, official 4-bit GGUF (1.1 GB file, Apache 2.0), run with llama.cpp.
+    36 languages. Off until installed (``glyphbridge cards install hymt2-q4``)."""
+
+    name = "hymt2-q4"
+    ram_mb = CARDS["hymt2-q4"].ram_mb
+    repo, revision = pinned("hymt2-q4", "GLYPHBRIDGE_HYMT_GGUF_REPO")
+    filename = "Hy-MT2-1.8B-Q4_K_M.gguf"
+
+    def __init__(self, cache: ModelCache = CACHE, device: str = "cpu"):
+        self.cache, self.device = cache, device
+
+    def enabled(self) -> bool:
+        return os.environ.get("GLYPHBRIDGE_ENABLE_HYMT") == "1" or is_installed(self.repo)
+
+    def _load(self):
+        def loader():
+            try:
+                from llama_cpp import Llama  # type: ignore
+            except ImportError as exc:
+                raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
+            path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
+                                self.filename)
+            return Llama(model_path=path, n_ctx=2048, n_threads=os.cpu_count() or 2, verbose=False)
+        return self.cache.get(self.repo, loader, self.ram_mb)
+
+    def supports(self, source: str, target: str) -> bool:
+        return self.enabled() and source in HYMT2_LANGS and target in HYMT2_LANGS
+
+    @staticmethod
+    def prompt(text: str, target: str) -> str:
+        # The model card's default English prompt; it asks for full language names.
+        return (f"Translate the following text into {LANG_NAMES.get(target, target)}. Note that you should "
+                f"only output the translated result without any additional explanation:\n\n{text}")
+
+    def translate(self, texts, source, target) -> Output:
+        llm = self._load()
+        if llm is None:
+            raise BackendUnavailable("Hy-MT2 (GGUF) could not be loaded")
+        out: Output = []
+        for text in texts:
+            res = llm.create_chat_completion(
+                messages=[{"role": "user", "content": self.prompt(text, target)}],
+                max_tokens=512, temperature=0.0, repeat_penalty=1.05)
+            out.append((res["choices"][0]["message"]["content"].strip(), None))
+        return out
+
+
 class OpusGroupBackend(OpusBackend):
     """Opus-MT multi-language group models into English, for languages without a pair
     model. Group models into English need no language tag on the source side.
@@ -418,7 +473,9 @@ def default_backends(cache: ModelCache = CACHE) -> List[Backend]:
     order = os.environ.get("GLYPHBRIDGE_BACKENDS",
                            "opus,gemma-q4,gemma,opus-group,madlad-int8,madlad").split(",")
     known = {"opus": OpusBackend, "gemma-q4": GemmaQ4Backend, "gemma": GemmaBackend,
-             "opus-group": OpusGroupBackend, "madlad-int8": MadladInt8Backend, "madlad": MadladBackend}
+             "opus-group": OpusGroupBackend, "madlad-int8": MadladInt8Backend, "madlad": MadladBackend,
+             # Not in the default order until golden-v1 says where it belongs.
+             "hymt2-q4": HyMT2Q4Backend}
     return [known[n.strip()](cache) for n in order if n.strip() in known]
 
 
