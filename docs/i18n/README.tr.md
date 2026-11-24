@@ -8,7 +8,7 @@
 
 ## Neden Glyphbridge?
 
-- **Sonsuza dek ücretsiz** — Apache 2.0 lisanslı açık kaynak; hesap ya da API anahtarı yok.
+- **Sonsuza dek ücretsiz** — Apache 2.0 lisanslı açık kaynak, kayıt gerekmez; API anahtarı yalnızca kendi sunucunuzu ağa açarsanız kullanılır.
 - **Gizli ve çevrimdışı** — her şey kendi bilgisayarınızda çalışır, belgeleriniz dışarı çıkmaz.
 - **Hafif** — **8 GB RAM**'li sıradan bir bilgisayarda, ekran kartı olmadan verimli çalışacak şekilde tasarlanıyor.
 - **Kalite konusunda dürüst** — her çeviri bir **güven puanıyla** gelir; tek bir reklam rakamı yerine her dil çifti için ölçülmüş kaliteyi (COMET / chrF) yayınlarız.
@@ -23,6 +23,18 @@
 | **v0.3** | **Sesli** çeviri: konuşma → metin → çeviri → ses | 📋 Planlanan |
 | **v0.4** | **Osmanlıca**: matbu ve el yazısı (rika, divani) OCR, transliterasyon, modern Türkçe | 📋 Planlanan |
 | **Deneysel** | **Mısır hiyeroglifleri** ve **çivi yazısı** (Akadca, Sümerce) — araştırmacılarla iş birliği içinde | 🔬 Araştırma |
+
+## Her yerde kullanın (planlanan)
+
+| Arayüz | Örnek |
+|---|---|
+| Python kütüphanesi | `glyphbridge.translate("Merhaba", to="en")` |
+| Komut satırı | `glyphbridge translate dosya.pdf --to de` |
+| REST API | `glyphbridge serve` → `POST /v1/translate` (isteğe bağlı API anahtarı) |
+| Yapay zekâ ajanları (MCP) | Claude ve diğer yapay zekâ asistanlarından araç olarak kullanın |
+| OpenAI uyumlu uç nokta | Mevcut yapay zekâ araçlarına kod değiştirmeden bağlayın |
+
+Her şey kendi sisteminizde çalışır ve ücretsizdir. API anahtarları, sunucunuzu ağa veya internete açtığınızda onu korur.
 
 ## Nasıl çalışır?
 
