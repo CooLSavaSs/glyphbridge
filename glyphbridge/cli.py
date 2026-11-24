@@ -4,6 +4,7 @@
     glyphbridge translate --file notes.txt --from tr --to de
     glyphbridge translate --file report.docx --to en        # -> report.en.docx
     glyphbridge translate --file photo.jpg --from tr --to en  # OCR, -> photo.en.txt
+    glyphbridge translate --file talk.mp3 --to en --speak     # speech -> talk.en.txt + talk.en.wav
     echo "Hola" | glyphbridge translate --to en --json
     glyphbridge serve --port 8080 --api-key "$GLYPHBRIDGE_API_KEY"
     glyphbridge mcp
@@ -23,13 +24,22 @@ from . import __version__
 from .engine import SUPPORTED_LANGUAGES, TranslationError, get_engine
 
 
-DOC_EXTS = {".docx", ".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
+DOC_EXTS = {".docx", ".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp",
+            ".wav", ".mp3", ".flac", ".ogg", ".m4a", ".opus", ".webm"}
 
 
 def _cmd_translate_file(args: argparse.Namespace) -> int:
     from .documents import translate_file
+    from .speech import AUDIO_EXTS, translate_audio
     try:
-        out, results = translate_file(args.file, target=args.to, source=args.source, out=args.output)
+        if os.path.splitext(args.file)[1].lower() in AUDIO_EXTS:
+            speak_out = os.path.splitext(args.file)[0] + f".{args.to}.wav" if args.speak else None
+            out, results = translate_audio(args.file, target=args.to, source=args.source,
+                                           out=args.output, speak_out=speak_out)
+            if speak_out:
+                print(f"\u2713 speech -> {speak_out}")
+        else:
+            out, results = translate_file(args.file, target=args.to, source=args.source, out=args.output)
     except (TranslationError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -151,7 +161,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     t = sub.add_parser("translate", help="Translate text or a text file")
     t.add_argument("text", nargs="*", help="Text to translate")
-    t.add_argument("--file", "-f", help="Translate a file: .txt, .md, .docx, .pdf or an image (OCR)")
+    t.add_argument("--file", "-f", help="Translate a file: .txt, .md, .docx, .pdf, an image (OCR) or audio (speech)")
+    t.add_argument("--speak", action="store_true", help="For audio input: also write the translation as speech (.wav)")
     t.add_argument("--output", "-o", help="Where to write the translated file (default: name.<lang>.ext)")
     t.add_argument("--from", dest="source", default="auto", help="Source language code (default: auto)")
     t.add_argument("--to", "-t", required=True, help="Target language code")
