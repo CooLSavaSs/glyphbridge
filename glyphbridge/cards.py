@@ -44,14 +44,14 @@ class Card:
 CARDS: Dict[str, Card] = {
     "madlad-int8": Card("madlad-int8", "MADLAD-400 3B int8 — 400+ languages, fits 8 GB PCs",
                         "Nextcloud-AI/madlad400-3b-mt-ct2-int8", 5500, "~3.0 GB", "Apache-2.0",
-                        "Default rare-language card (CTranslate2). 5.5 GB peak RAM measured in CI.",
+                        "Default rare-language card (CTranslate2). 3.3-5.5 GB peak RAM measured in CI (two runs).",
                     revision="aa32bbdeba7880eff2096ec044cb155a340a9400",
                     sha256=(("model.bin", "77b9fd9ab97c1259d07089b5f854393dad81bc5fb5647d3f9a5d101c94f40daa"),
                             ("spiece.model", "ef11ac9a22c7503492f56d48dce53be20e339b63605983e9f27d2cd0e0f3922c"))),
     "gemma-q4": Card("gemma-q4", "TranslateGemma 4B 4-bit — highest quality, fits 8 GB PCs",
-                     "anilb/translategemma-gguf", 4600, "~2.5 GB", "Gemma terms",
+                     "anilb/translategemma-gguf", 4800, "~2.5 GB", "Gemma terms",
                      "Community Q4_K_M quantization run with llama.cpp. Installing it turns it on. "
-                     "4.6 GB peak RAM measured in CI.",
+                     "4.6-4.8 GB peak RAM measured in CI.",
                     revision="b4a4747a01c36cadf60238985cd31dc6ea66b760",
                     sha256=(("translategemma-4b-it.Q4_K_M.gguf",
                              "81200d03e843d2ec1ece6eeafe7d13cb6e5211e1fcd336ade55790b683a08330"),)),
