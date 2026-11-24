@@ -16,7 +16,8 @@ otherwise the model's own token probability (None when the backend gives none).
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from collections import OrderedDict
+from dataclasses import asdict, dataclass, field, replace
 from typing import Dict, List, Optional, Sequence
 
 import os
@@ -64,13 +65,30 @@ class Engine:
             os.environ["HF_HUB_OFFLINE"] = "1"  # use installed cards only, never download
         self.backends = backends if backends is not None else default_backends()
         self.checker = checker if checker is not None else Checker()
+        # Results cache: a sentence repeated in a document is translated only once.
+        self._cache: "OrderedDict[tuple, TranslationResult]" = OrderedDict()
+        self.cache_size = int(os.environ.get("GLYPHBRIDGE_RESULT_CACHE", "2048"))
+
+    def _ordered(self) -> List[Backend]:
+        """Backends in the order to try them.
+
+        * ``GLYPHBRIDGE_PREFER=quality`` tries TranslateGemma before the fast Opus-MT models.
+        * Cards whose estimated RAM does not fit the current RAM budget move to the end,
+          so a small card is tried before a large one would push the PC into swap.
+        """
+        order = list(self.backends)
+        if os.environ.get("GLYPHBRIDGE_PREFER", "speed") == "quality":
+            order.sort(key=lambda b: 0 if b.name.startswith("gemma") else 1)
+        budget = cards.ram_budget_mb()
+        return sorted(order, key=lambda b: 1 if getattr(b, "ram_mb", 0) > budget else 0)
 
     def candidates(self, source: str, target: str) -> List[list]:
         """Routes to try, best first. A route is a list of (backend, src, tgt) hops."""
-        routes = [[(b, source, target)] for b in self.backends if b.supports(source, target)]
+        backends = self._ordered()
+        routes = [[(b, source, target)] for b in backends if b.supports(source, target)]
         if PIVOT not in (source, target):
-            first = next((b for b in self.backends if b.supports(source, PIVOT)), None)
-            second = next((b for b in self.backends if b.supports(PIVOT, target)), None)
+            first = next((b for b in backends if b.supports(source, PIVOT)), None)
+            second = next((b for b in backends if b.supports(PIVOT, target)), None)
             if first and second:
                 routes.append([(first, source, PIVOT), (second, PIVOT, target)])
         return routes
@@ -85,6 +103,27 @@ class Engine:
         return current, probs, label
 
     def translate_batch(self, texts: Sequence[str], target: str, source: str = "auto") -> List[TranslationResult]:
+        """Translate texts, reusing cached results and translating each distinct text once."""
+        if not texts:
+            return []
+        if source in (None, "", "auto"):
+            detected = lid.detect(" ".join(texts))
+            if not detected:
+                raise TranslationError("Could not detect the source language; pass source=...")
+            source = detected
+        source, target = source.lower(), target.lower()
+        keys = [(t, source, target) for t in texts]
+        todo = list(dict.fromkeys(k for k in keys if k not in self._cache))
+        if todo:
+            fresh = self._translate_uncached([k[0] for k in todo], target, source)
+            for k, r in zip(todo, fresh):
+                self._cache[k] = r
+                self._cache.move_to_end(k)
+            while len(self._cache) > self.cache_size:
+                self._cache.popitem(last=False)
+        return [replace(self._cache[k], attempts=list(self._cache[k].attempts)) for k in keys]
+
+    def _translate_uncached(self, texts: Sequence[str], target: str, source: str) -> List[TranslationResult]:
         if not texts:
             return []
         target = target.lower()
