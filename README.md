@@ -4,7 +4,7 @@
 
 🌐 **English** · [Türkçe](docs/i18n/README.tr.md) · [Español](docs/i18n/README.es.md) · [Français](docs/i18n/README.fr.md) · [Deutsch](docs/i18n/README.de.md) · [Português](docs/i18n/README.pt.md) · [Русский](docs/i18n/README.ru.md) · [العربية](docs/i18n/README.ar.md) · [हिन्दी](docs/i18n/README.hi.md) · [中文](docs/i18n/README.zh.md) · [日本語](docs/i18n/README.ja.md) · *[Add your language →](CONTRIBUTING.md#translate-this-readme)*
 
-> ⚠️ **Status: early development.** Glyphbridge is being built in the open. Features below marked *planned* do not exist yet — we'd love your help building them.
+> ⚠️ **Status: early preview (0.1.0.dev0).** Text, DOCX, image (OCR) and speech translation work and are tested with real models in CI, but nothing is production-ready and quality has not been benchmarked yet. Items marked *planned* or *research* do not exist yet — we'd love your help building them.
 
 ---
 
@@ -15,7 +15,7 @@ High-quality translation today is mostly paid, online and closed. Glyphbridge ai
 - **Free forever** — open source under the Apache 2.0 license. No sign-up; API keys only if you choose to expose your own server.
 - **Private & offline** — everything runs on your own computer. Your documents never leave it.
 - **Light** — designed to run well on an ordinary PC with **8 GB of RAM**, no GPU required.
-- **Honest about quality** — every translation comes with a **confidence score**, and we publish measured quality (COMET / chrF) for each language pair instead of a single marketing number.
+- **Honest about quality** — every translation comes with a **confidence score**, and the goal is to publish measured quality (chrF / COMET) for each language pair instead of a single marketing number ([help wanted](https://github.com/CooLSavaSs/glyphbridge/issues)).
 - **For every script** — not just modern text, but text in photos, documents, speech, and historical writing systems.
 
 ## Features & roadmap
@@ -24,7 +24,7 @@ High-quality translation today is mostly paid, online and closed. Glyphbridge ai
 |---|---|---|
 | **v0.1** | Text translation with a model router (Opus-MT → TranslateGemma → MADLAD-400), meaning checker, install-only-what-you-need model cards, CLI, REST API with API keys, MCP server | 🧪 Preview |
 | **v0.2** | **Documents**: DOCX translated in place (headings, lists, tables kept), PDF text layer → text, TXT/MD; **images** via Tesseract OCR. Next: PDF layout, trimmed int8 cards | 🧪 Partly in preview |
-| **v0.3** | **Speech**: Whisper speech-to-text → translation → espeak-ng speech (`--speak`). live microphone mode (`glyphbridge listen`). Next: natural voices | 🧪 Preview |
+| **v0.3** | **Speech**: Whisper speech-to-text → translation → espeak-ng speech (`--speak`); live microphone mode (`glyphbridge listen`). Next: natural voices | 🧪 Preview |
 | **v0.4** | **Ottoman Turkish**: printed & handwritten (rika, divani) OCR, transliteration, modern Turkish | 📋 Planned |
 | **Experimental** | **Egyptian hieroglyphs** and **cuneiform** (Akkadian, Sumerian) — in collaboration with researchers | 🔬 Research |
 
@@ -64,8 +64,10 @@ Glyphbridge builds on proven open models instead of starting from zero. A **rout
 | Role | Model (card) | Languages | License | RAM (est.) |
 |---|---|---|---|---|
 | Fast path | Opus-MT / tc-big (`opus:<src>-<tgt>`) | one pair per card | CC-BY 4.0 | ~600 MB |
-| Best quality *(opt-in)* | TranslateGemma 4B (`gemma`) | ~55 evaluated, ~500 pairs trained; also images | Gemma terms | ~9 GB today, 4-bit card planned |
-| Rare languages | MADLAD-400 3B (`madlad`) | 400+ (Latin, Syriac, ...) | Apache 2.0 | ~6.5 GB today, int8 card planned |
+| Best quality, **8 GB PCs** *(opt-in)* | TranslateGemma 4B 4-bit GGUF (`gemma-q4`) | ~55 evaluated | Gemma terms | ~3.5 GB (est.) |
+| Rare languages, **8 GB PCs** | MADLAD-400 3B int8 CTranslate2 (`madlad-int8`) | 400+ | Apache 2.0 | ~3.5 GB (est.) |
+| Best quality, full size *(opt-in)* | TranslateGemma 4B (`gemma`) | ~55 evaluated, ~500 pairs trained; also images | Gemma terms | ~9 GB (est.) |
+| Rare languages, full size *(opt-in)* | MADLAD-400 3B (`madlad`) | 400+ (Latin, Syriac, ...) | Apache 2.0 | **6.5 GB measured** |
 | Language detection | GlotLID (`lid`) | 1,600+ | Apache 2.0 | small |
 | Meaning checker | LaBSE (`checker`) | 109 | Apache 2.0 | ~1 GB |
 
@@ -88,14 +90,15 @@ The goal is to use a large model's knowledge without running all of it:
 
 | Step | Technique | Effect |
 |---|---|---|
-| v0.2 | **Vocabulary-trimmed + int8 cards**: a `tr-en` card keeps only the vocabulary of those two languages | much smaller RAM and disk, near-identical quality |
+| v0.2 ✓ | **int8 / 4-bit cards** (`madlad-int8`, `gemma-q4`): community-quantized versions of the big models | about half the RAM |
+| next | **Vocabulary-trimmed cards**: a `tr-en` card keeps only the vocabulary of those two languages | even smaller RAM and disk |
 | v0.3 | **Base + adapter cards**: one small shared model stays loaded; 10–50 MB LoRA adapters per language or task are swapped in | switching languages costs almost no RAM |
 | v0.3 | **Distilled cards**: a large model teaches a small per-pair model | best quality per MB |
 | later | **`--low-ram` mode**: stream layers from disk one at a time | runs very large models on small PCs, but slowly |
 
 ## Getting started
 
-> v0.1 is a **preview**: text translation works; images, documents, speech and historical scripts come in later versions.
+> This is a **preview**: text, documents (DOCX, PDF text), images (OCR) and speech work; PDF layout, natural voices and historical scripts are not done yet. Quality has not been benchmarked.
 
 ```bash
 # CPU-only PyTorch keeps the install small
@@ -133,7 +136,7 @@ glyphbridge serve --port 8080              # localhost only
 glyphbridge serve --host 0.0.0.0           # network: refuses to start without an API key
 ```
 
-Endpoints: `GET /v1/health`, `GET /v1/languages`, `POST /v1/translate` (`text` or `texts`, `source`, `target`), and the OpenAI-compatible `GET /v1/models` + `POST /v1/chat/completions` (model `glyphbridge-<target>`). Interactive docs at `http://localhost:8080/docs`.
+Each client may make 120 requests per minute (`GLYPHBRIDGE_RATE_LIMIT`, 0 = unlimited). Endpoints: `GET /v1/health`, `GET /v1/languages`, `POST /v1/translate` (`text` or `texts`, `source`, `target`), and the OpenAI-compatible `GET /v1/models` + `POST /v1/chat/completions` (model `glyphbridge-<target>`). Interactive docs at `http://localhost:8080/docs`.
 
 **AI assistants (MCP)**
 
