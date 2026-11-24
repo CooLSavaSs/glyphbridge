@@ -364,3 +364,83 @@ def test_card_licenses_allow_free_commercial_use():
     for card in CARDS.values():
         assert card.license in open_licenses or card.id in opt_in, (card.id, card.license)
         assert "NC" not in card.license and "GPL" not in card.license, card.id
+
+
+def test_cache_key_includes_models_and_settings(monkeypatch):
+    calls = []
+
+    class Counting(FakeBackend):
+        def translate(self, texts, s, t):
+            calls.append(self.name)
+            return super().translate(texts, s, t)
+
+    e = Engine(backends=[Counting("opus", OPUS.table)], checker=FakeChecker())
+    e.translate("Merhaba dünya", "en", "tr")
+    e.translate("  Merhaba   dünya ", "en", "tr")            # same text after normalization
+    assert calls == ["opus"]
+    monkeypatch.setenv("GLYPHBRIDGE_PREFER", "quality")      # setting changed -> not reused
+    e.translate("Merhaba dünya", "en", "tr")
+    assert calls == ["opus", "opus"]
+    e.backends = [Counting("gemma-q4", OPUS.table)]           # different model -> not reused
+    assert e.translate("Merhaba dünya", "en", "tr").model == "gemma-q4:tr-en"
+
+
+def test_checksum_verification(tmp_path, monkeypatch):
+    import hashlib
+    import sys
+    import types
+    from glyphbridge import cards
+    f = tmp_path / "model.bin"
+    f.write_bytes(b"weights")
+    good = hashlib.sha256(b"weights").hexdigest()
+    fake_hub = types.SimpleNamespace(hf_hub_download=lambda repo, name, revision=None: str(f))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", fake_hub)
+    card = cards.Card("t", "test", "x/y", 1, "1", "MIT", revision="0" * 40, sha256=(("model.bin", good),))
+    monkeypatch.setitem(cards.CARDS, "t", card)
+    assert cards.verify("t") == ["model.bin"]
+    monkeypatch.setitem(cards.CARDS, "t", cards.Card("t", "test", "x/y", 1, "1", "MIT", revision="0" * 40,
+                                                     sha256=(("model.bin", "0" * 64),)))
+    with pytest.raises(cards.ChecksumError):
+        cards.verify("t")
+
+
+def test_community_cards_have_checksums():
+    from glyphbridge.cards import CARDS
+    for cid in ("madlad-int8", "gemma-q4", "lid"):
+        assert CARDS[cid].sha256 and all(len(h) == 64 for _, h in CARDS[cid].sha256), cid
+
+
+def test_golden_script_reports_categories(tmp_path, monkeypatch):
+    import importlib.util
+    import json
+    pytest.importorskip("sacrebleu")
+    v1 = tmp_path / "v1"
+    v1.mkdir()
+    (v1 / "tr-en.tsv").write_text("# header\nnames\tAhmet geldi.\tAhmet came.\n"
+                                  "numbers\t3 elma\t3 apples\n", encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("golden", "scripts/golden.py")
+    golden = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(golden)
+    import glyphbridge.engine as eng
+    answers = {"Ahmet geldi.": "Ahmet came.", "3 elma": "three apples"}
+
+    class FakeEngine:
+        def translate_batch(self, texts, target, source=None):
+            return [eng.TranslationResult(answers[t], source, target, None, "fake") for t in texts]
+
+    monkeypatch.setattr(eng, "Engine", FakeEngine)
+    out = tmp_path / "r.json"
+    assert golden.main([str(v1 / "tr-en.tsv") + ":0", "--json", str(out)]) == 0
+    report = json.loads(out.read_text(encoding="utf-8"))
+    assert report["version"] == "golden-v1"
+    cats = report["files"]["tr-en"]["categories"]
+    assert set(cats) == {"names", "numbers"} and cats["names"]["chrf"] == 100.0
+    assert golden.main([str(v1 / "tr-en.tsv") + ":99"]) == 1
+
+
+def test_default_router_order_is_locked(monkeypatch):
+    # The fixed order is a documented contract (CONTRIBUTING: "How cards are chosen").
+    # Change it only together with benchmark numbers.
+    from glyphbridge.backends import ModelCache, default_backends, names
+    monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
+    assert names(default_backends(ModelCache(budget_mb=1))) == ["opus", "gemma-q4", "gemma", "madlad-int8", "madlad"]
