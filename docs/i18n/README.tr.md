@@ -72,6 +72,20 @@ Glyphbridge kendini kanıtlamış açık modelleri kullanır. Bir **yönlendiric
 
 **Şu ana kadarki kalite** (golden-v1: elle hazırlanmış küçük bir kontrol seti, benchmark değil): Opus-MT Türkçe→İngilizce'de chrF **75,6**, İngilizce→Türkçe'de **76,8** alıyor. İsimler, sayılar, olumsuzluk ve teknik metin iyi; deyimler zayıf (chrF 22–28) ve sıradaki iyileştirme konusu. Latincede MADLAD regresyon örneği *Gallia est omnis divisa in partes tres*'i yanlış çeviriyor (chrF 38,7), TranslateGemma 4-bit (`gemma-q4`) ise **84,9** alıyor; bu yüzden Latince artık kuruluysa `gemma-q4`'e gidiyor. Türkçede `gemma-q4` Opus-MT'den düşük puan aldı (68,6 / 64,4), bu yüzden Opus-MT önde kalıyor. Yönlendirici sırasını tahminler değil bu ölçümler belirliyor.
 
+### Çeviri belleği: kendi çevirilerinizi sabitleyin
+
+Deyimler ve kuruma özel terimler modellerin en çok yanıldığı yerlerdir. Bir çeviri belleği dosyası bir cümlenin ya da ifadenin nasıl çevrileceğini sabitler; her modelden önce kullanılır, eşleşmede büyük/küçük harf, fazla boşluk ve sondaki noktalama dikkate alınmaz:
+
+```text
+# kaynak_dil<TAB>hedef_dil<TAB>kaynak<TAB>çeviri
+tr	en	Gözden ırak olan gönülden de ırak olur.	Out of sight, out of mind.
+```
+
+```bash
+glyphbridge translate --memory deyimler.tsv --to en "Gözden ırak olan gönülden de ırak olur."
+export GLYPHBRIDGE_MEMORY=deyimler.tsv   # API, MCP ve Python için
+```
+
 ### Model kartları: yalnızca gereken çalışır
 
 Her model bir **kart**tır. Sadece ihtiyacınız olan kartları kurarsınız; çeviri sırasında yalnızca o cümlenin gerektirdiği kart belleğe yüklenir, RAM bütçesi dolunca en eski kart bellekten çıkarılır. 8 GB RAM'li bilgisayarda böyle rahat çalışır.
