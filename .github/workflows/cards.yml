@@ -73,3 +73,11 @@ jobs:
         run: |
           pip install sacrebleu
           python scripts/golden.py tests/golden/v1/la-en.tsv:0 --json golden-8gb.json
+      - name: Golden set with TranslateGemma 4-bit first (report only, idioms and Latin experiment)
+        env:
+          GLYPHBRIDGE_OFFLINE: "1"
+          GLYPHBRIDGE_PREFER: quality
+          GLYPHBRIDGE_BACKENDS: gemma-q4,madlad-int8
+          GLYPHBRIDGE_GEMMA_LANGS: en,tr,la
+        run: |
+          python scripts/golden.py tests/golden/v1/tr-en.tsv:0 tests/golden/v1/en-tr.tsv:0 tests/golden/v1/la-en.tsv:0 --json golden-gemma.json
