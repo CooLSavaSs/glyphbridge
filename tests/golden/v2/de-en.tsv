@@ -1,0 +1,19 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+general	Ich trinke morgens immer einen Kaffee.	I always drink a coffee in the morning.
+general	Die Kinder spielen im Garten.	The children are playing in the garden.
+questions	Wie komme ich zum Bahnhof?	How do I get to the station?
+names	Anna wohnt seit drei Jahren in München.	Anna has been living in Munich for three years.
+names	Der Rhein fließt durch Köln.	The Rhine flows through Cologne.
+numbers	Das Ticket kostet 49 Euro im Monat.	The ticket costs 49 euros a month.
+numbers	Die Firma hat 1.200 Mitarbeiter.	The company has 1,200 employees.
+dates	Der Kurs beginnt am 3. Oktober um 18 Uhr.	The course starts on 3 October at 6 pm.
+negation	Ich habe heute keine Zeit.	I don't have time today.
+negation	Niemand hat mir davon erzählt.	Nobody told me about it.
+idioms	Das ist nicht mein Bier.	That's not my problem.
+idioms	Ich drücke dir die Daumen.	I'll keep my fingers crossed for you.
+technical	Bitte starten Sie den Rechner neu, um die Installation abzuschließen.	Please restart the computer to complete the installation.
+technical	Das Passwort muss mindestens zwölf Zeichen lang sein.	The password must be at least twelve characters long.
+long	Obwohl der Zug Verspätung hatte, kamen wir noch rechtzeitig zum Konzert, weil das Stadion direkt neben dem Bahnhof liegt.	Although the train was late, we still arrived at the concert on time because the stadium is right next to the station.

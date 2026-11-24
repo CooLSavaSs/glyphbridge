@@ -1,0 +1,66 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+general	Bugün hava çok güzel.	The weather is very nice today.
+general	Çocuklar bahçede top oynuyorlar.	The children are playing ball in the garden.
+names	Ahmet'in kız kardeşi İstanbul'da yaşıyor.	Ahmet's sister lives in Istanbul.
+names	Elif yarın Londra'ya uçacak.	Elif will fly to London tomorrow.
+names	Ankara, Türkiye'nin başkentidir.	Ankara is the capital of Turkey.
+numbers	Fiyatı 1.250 liradan 990 liraya düştü.	The price dropped from 1,250 lira to 990 lira.
+numbers	Tren 3 saat gecikti.	The train was 3 hours late.
+dates	Toplantı saat 14:30'da başlayacak.	The meeting will start at 14:30.
+dates	Sözleşme 15 Mart 2025'te sona eriyor.	The contract expires on 15 March 2025.
+negation	Bu ilacı aç karnına almayın.	Do not take this medicine on an empty stomach.
+negation	Hiç kimse toplantıya gelmedi.	Nobody came to the meeting.
+negation	Kapıyı kapatmayı unutma.	Don't forget to close the door.
+negation	Bu kitabı okumadan önce yorum yapma.	Don't comment on this book before reading it.
+idioms	Bu iş çok kolay, çocuk oyuncağı.	This job is very easy, child's play.
+idioms	Gözden ırak olan gönülden de ırak olur.	Out of sight, out of mind.
+technical	Sunucuyu yeniden başlatmadan önce yapılandırma dosyasını yedekleyin.	Back up the configuration file before restarting the server.
+technical	Uygulama 8 GB RAM'li bir bilgisayarda çalışır.	The application runs on a computer with 8 GB of RAM.
+long	Dün akşam eve geç geldim çünkü trafik çok yoğundu; yine de annemle birlikte yemek yedik ve uzun uzun sohbet ettik.	I came home late last night because the traffic was very heavy; still, I had dinner with my mother and we talked for a long time.
+general	Akşam yemeğinden sonra sahilde yürüyüşe çıktık.	After dinner we went for a walk on the beach.
+general	Kahvemi şekersiz içerim.	I drink my coffee without sugar.
+general	Kütüphane hafta sonları kapalıdır.	The library is closed at weekends.
+general	Bu sabah otobüsü kaçırdım.	I missed the bus this morning.
+questions	Bu akşam ne yapmak istersin?	What would you like to do this evening?
+questions	İstasyona nasıl gidebilirim?	How can I get to the station?
+questions	Neden bu kadar geç kaldın?	Why are you so late?
+questions	Bu ceketin fiyatı ne kadar?	How much is this jacket?
+names	Mehmet ile Zeynep geçen yıl İzmir'de evlendi.	Mehmet and Zeynep got married in Izmir last year.
+names	Mustafa Kemal Atatürk 1881'de Selanik'te doğdu.	Mustafa Kemal Atatürk was born in Thessaloniki in 1881.
+names	Ayşe Hanım Almanya'daki oğlunu ziyaret etti.	Mrs Ayşe visited her son in Germany.
+names	Karadeniz kıyısındaki küçük bir köyde büyüdüm.	I grew up in a small village on the Black Sea coast.
+numbers	Şirket bu yıl 2,5 milyon lira kâr etti.	The company made a profit of 2.5 million lira this year.
+numbers	Sınıfta 32 öğrenci var, bunların 17'si kız.	There are 32 students in the class, 17 of whom are girls.
+numbers	Bina 1923 yılında inşa edildi.	The building was built in 1923.
+numbers	Ürünün fiyatına %18 KDV dahildir.	The price of the product includes 18% VAT.
+dates	Okullar 9 Eylül'de açılıyor.	Schools open on 9 September.
+dates	Randevunuz salı günü saat 09:15'te.	Your appointment is on Tuesday at 09:15.
+dates	1 Ocak 2026'dan itibaren yeni kurallar geçerli olacak.	The new rules will apply from 1 January 2026.
+negation	Henüz kimseye bir şey söylemedim.	I haven't told anyone anything yet.
+negation	Artık orada çalışmıyorum.	I don't work there any more.
+negation	Ne o geldi ne de kardeşi.	Neither he nor his brother came.
+negation	Bunu yapmasaydın sorun çıkmazdı.	If you hadn't done that, there wouldn't have been a problem.
+idioms	Damlaya damlaya göl olur.	Every little helps.
+idioms	Ayağını yorganına göre uzat.	Cut your coat according to your cloth.
+idioms	Bir taşla iki kuş vurdu.	He killed two birds with one stone.
+idioms	Sakla samanı, gelir zamanı.	Waste not, want not.
+idioms	Üzüm üzüme baka baka kararır.	A man is known by the company he keeps.
+idioms	Atı alan Üsküdar'ı geçti.	The horse has already bolted.
+technical	Şifrenizi kimseyle paylaşmayın.	Do not share your password with anyone.
+technical	Güncellemeyi yüklemek için bilgisayarı yeniden başlatmanız gerekiyor.	You need to restart the computer to install the update.
+technical	Veritabanı bağlantısı zaman aşımına uğradı.	The database connection timed out.
+technical	Dosya boyutu 25 MB'ı geçmemelidir.	The file size must not exceed 25 MB.
+medical	Günde üç kez, yemeklerden sonra bir tablet alın.	Take one tablet three times a day after meals.
+medical	Ateşiniz 38 derecenin üzerine çıkarsa doktora başvurun.	If your temperature rises above 38 degrees, see a doctor.
+formal	Başvurunuzun olumlu sonuçlandığını bildirmekten memnuniyet duyarız.	We are pleased to inform you that your application has been successful.
+formal	Gereğinin yapılmasını arz ederim.	I respectfully request that the necessary action be taken.
+morphology	Gelemeyeceğimi önceden söylemeliydim.	I should have said beforehand that I couldn't come.
+morphology	Okuduğum kitabı arkadaşıma verdim.	I gave the book I was reading to my friend.
+morphology	Annemin yaptığı yemekleri çok özledim.	I really miss the food my mother made.
+morphology	Görüşebileceğimiz bir zaman var mı?	Is there a time when we can meet?
+long	Geçen yaz ailemle birlikte Kapadokya'ya gittik; balonla uçtuk, yeraltı şehirlerini gezdik ve her akşam yerel yemekler denedik.	Last summer my family and I went to Cappadocia; we flew in a balloon, visited the underground cities and tried local dishes every evening.
+long	Proje zamanında bitmedi, çünkü ekipteki iki kişi hastalandı ve tedarikçi malzemeleri iki hafta geç gönderdi.	The project was not finished on time because two people on the team fell ill and the supplier sent the materials two weeks late.
+long	Belediye, şehir merkezindeki trafiği azaltmak için yeni bir otobüs hattı açacağını ve bisiklet yollarını genişleteceğini açıkladı.	The municipality announced that it will open a new bus line and widen the cycle paths to reduce traffic in the city centre.

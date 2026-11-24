@@ -1,0 +1,19 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+general	Nous avons dîné dans un petit restaurant près du port.	We had dinner in a small restaurant near the harbour.
+general	Il fait très froid ce matin.	It is very cold this morning.
+questions	Pouvez-vous m'aider à porter cette valise ?	Can you help me carry this suitcase?
+names	Marie et Pierre se sont rencontrés à Lyon.	Marie and Pierre met in Lyon.
+names	La Seine traverse Paris.	The Seine flows through Paris.
+numbers	La réunion a rassemblé plus de 250 personnes.	The meeting brought together more than 250 people.
+numbers	Le prix a augmenté de 15 %.	The price has risen by 15%.
+dates	Le magasin est fermé le dimanche.	The shop is closed on Sundays.
+dates	Il est né le 14 juillet 1990.	He was born on 14 July 1990.
+negation	Je ne suis jamais allé au Canada.	I have never been to Canada.
+negation	Il n'y a plus de pain.	There is no more bread.
+idioms	Il pleut des cordes.	It's raining cats and dogs.
+idioms	Ce n'est pas la mer à boire.	It's not the end of the world.
+technical	Veuillez saisir votre adresse e-mail pour réinitialiser votre mot de passe.	Please enter your email address to reset your password.
+long	Comme il pleuvait depuis le matin, nous avons décidé de rester à la maison, de regarder un film et de préparer une soupe ensemble.	As it had been raining since the morning, we decided to stay at home, watch a film and make soup together.

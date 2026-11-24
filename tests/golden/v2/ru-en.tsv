@@ -1,0 +1,19 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+general	Я каждый день читаю новости.	I read the news every day.
+general	Дети играют во дворе.	The children are playing in the yard.
+questions	Где находится ближайшая аптека?	Where is the nearest pharmacy?
+names	Иван работает инженером в Санкт-Петербурге.	Ivan works as an engineer in St Petersburg.
+names	Волга — самая длинная река в Европе.	The Volga is the longest river in Europe.
+numbers	В классе 25 учеников.	There are 25 pupils in the class.
+numbers	Цена выросла на 10 процентов.	The price rose by 10 percent.
+dates	Встреча состоится в среду в 10 часов утра.	The meeting will take place on Wednesday at 10 am.
+negation	Я никогда не был в Африке.	I have never been to Africa.
+negation	У меня нет времени.	I don't have time.
+idioms	Без труда не выловишь и рыбку из пруда.	No pain, no gain.
+idioms	Тише едешь — дальше будешь.	Slow and steady wins the race.
+technical	Сохраните файл перед закрытием программы.	Save the file before closing the program.
+technical	Сервер временно недоступен.	The server is temporarily unavailable.
+long	Хотя на улице было холодно, мы долго гуляли по парку, потому что давно не виделись.	Although it was cold outside, we walked in the park for a long time because we had not seen each other for ages.

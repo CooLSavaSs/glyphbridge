@@ -1,0 +1,29 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+low-resource	Gallia est omnis divisa in partes tres.	All Gaul is divided into three parts.
+low-resource	Roma non uno die aedificata est.	Rome was not built in one day.
+idioms	Veni, vidi, vici.	I came, I saw, I conquered.
+idioms	Alea iacta est.	The die is cast.
+idioms	Cogito, ergo sum.	I think, therefore I am.
+idioms	Errare humanum est.	To err is human.
+idioms	In vino veritas.	In wine there is truth.
+idioms	Ars longa, vita brevis.	Art is long, life is short.
+idioms	Amor vincit omnia.	Love conquers all.
+idioms	Si vis pacem, para bellum.	If you want peace, prepare for war.
+idioms	Mens sana in corpore sano.	A healthy mind in a healthy body.
+idioms	Fortes fortuna adiuvat.	Fortune favours the brave.
+idioms	Dum spiro, spero.	While I breathe, I hope.
+idioms	Historia est magistra vitae.	History is the teacher of life.
+idioms	Quis custodiet ipsos custodes?	Who will guard the guards themselves?
+idioms	Nemo propheta in patria sua.	No one is a prophet in his own country.
+general	In principio erat Verbum.	In the beginning was the Word.
+general	Puella rosam pulchram amat.	The girl loves the beautiful rose.
+general	Agricola in agro laborat.	The farmer works in the field.
+general	Milites urbem fortiter defenderunt.	The soldiers defended the city bravely.
+general	Magister discipulis librum dedit.	The teacher gave the book to the students.
+names	Caesar copias trans flumen duxit.	Caesar led the troops across the river.
+names	Hannibal cum elephantis Alpes transiit.	Hannibal crossed the Alps with elephants.
+numbers	Roma septem collibus condita est.	Rome was founded on seven hills.
+long	Cum nuntius de adventu hostium in urbem venisset, cives portas clauserunt et arma paraverunt.	When the news of the enemy's arrival had reached the city, the citizens closed the gates and prepared their weapons.

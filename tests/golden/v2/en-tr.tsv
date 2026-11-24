@@ -1,0 +1,49 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+general	The weather is very nice today.	Bugün hava çok güzel.
+names	Maria lives in Berlin with her two cats.	Maria iki kedisiyle Berlin'de yaşıyor.
+numbers	The price dropped from 1,250 lira to 990 lira.	Fiyat 1.250 liradan 990 liraya düştü.
+numbers	The train was 3 hours late.	Tren 3 saat gecikti.
+dates	The meeting will start at 14:30.	Toplantı saat 14:30'da başlayacak.
+dates	Please call me before Friday.	Lütfen cumadan önce beni ara.
+negation	Do not take this medicine on an empty stomach.	Bu ilacı aç karnına almayın.
+negation	Nobody came to the meeting.	Toplantıya kimse gelmedi.
+idioms	It's raining cats and dogs.	Bardaktan boşanırcasına yağmur yağıyor.
+technical	Back up the configuration file before restarting the server.	Sunucuyu yeniden başlatmadan önce yapılandırma dosyasını yedekleyin.
+long	I came home late last night because the traffic was very heavy, but we still had dinner together.	Trafik çok yoğun olduğu için dün gece eve geç geldim ama yine de birlikte akşam yemeği yedik.
+general	I usually go to work by bike.	Genellikle işe bisikletle giderim.
+general	The shop around the corner sells fresh bread.	Köşedeki dükkân taze ekmek satıyor.
+general	My phone's battery is almost dead.	Telefonumun şarjı bitmek üzere.
+questions	Where did you park the car?	Arabayı nereye park ettin?
+questions	Could you help me carry these boxes?	Bu kutuları taşımama yardım edebilir misin?
+questions	What time does the museum close?	Müze saat kaçta kapanıyor?
+names	John and Sarah moved from London to Manchester last year.	John ve Sarah geçen yıl Londra'dan Manchester'a taşındı.
+names	The Thames flows through the centre of London.	Thames Nehri Londra'nın merkezinden geçer.
+names	Dr Smith will see you on Monday.	Dr. Smith sizi pazartesi günü görecek.
+numbers	About 70% of the Earth's surface is covered by water.	Dünya yüzeyinin yaklaşık %70'i suyla kaplıdır.
+numbers	The bridge is 1,560 metres long.	Köprü 1.560 metre uzunluğundadır.
+numbers	She ran the marathon in 3 hours and 42 minutes.	Maratonu 3 saat 42 dakikada koştu.
+dates	The office is closed from 24 December to 2 January.	Ofis 24 Aralık'tan 2 Ocak'a kadar kapalıdır.
+dates	The package will arrive on Thursday morning.	Paket perşembe sabahı gelecek.
+dates	He was born on 29 February 1996.	29 Şubat 1996'da doğdu.
+negation	I have never been to Japan.	Hiç Japonya'ya gitmedim.
+negation	You don't need to bring anything.	Bir şey getirmene gerek yok.
+negation	She hasn't replied to my email yet.	Henüz e-postama cevap vermedi.
+negation	There is no milk left in the fridge.	Buzdolabında hiç süt kalmadı.
+idioms	Break a leg tonight!	Bu akşam bol şans!
+idioms	It's a piece of cake.	Çocuk oyuncağı.
+idioms	Let's call it a day.	Bugünlük bu kadar yeter.
+idioms	He spilled the beans about the surprise party.	Sürpriz partiyi ağzından kaçırdı.
+idioms	Don't put all your eggs in one basket.	Bütün yumurtaları aynı sepete koyma.
+technical	Clear your browser cache and try again.	Tarayıcınızın önbelleğini temizleyip tekrar deneyin.
+technical	The update fixes a security vulnerability in the login page.	Güncelleme, giriş sayfasındaki bir güvenlik açığını kapatıyor.
+technical	Enter the verification code sent to your phone.	Telefonunuza gönderilen doğrulama kodunu girin.
+technical	The model requires at least 4 GB of free memory.	Model en az 4 GB boş bellek gerektirir.
+medical	Keep this medicine out of the reach of children.	Bu ilacı çocukların ulaşamayacağı yerde saklayın.
+medical	Do not drive after taking this tablet.	Bu tableti aldıktan sonra araç kullanmayın.
+formal	Please find attached the documents you requested.	İstediğiniz belgeleri ekte bulabilirsiniz.
+formal	We apologise for any inconvenience caused.	Yaşanan aksaklıktan dolayı özür dileriz.
+long	Although it was raining heavily, hundreds of people gathered in the square to watch the concert, and nobody left until the very last song.	Yağmur şiddetli yağmasına rağmen yüzlerce kişi konseri izlemek için meydanda toplandı ve son şarkıya kadar kimse ayrılmadı.
+long	If you register before the end of the month, you will get a 20% discount and free delivery on your first order.	Ay sonundan önce kayıt olursanız ilk siparişinizde %20 indirim ve ücretsiz teslimat kazanırsınız.
