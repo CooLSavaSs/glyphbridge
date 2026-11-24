@@ -43,3 +43,19 @@ jobs:
           pip install -e .
       - name: Run MADLAD check
         run: python scripts/smoke_cards.py madlad
+
+  small-8gb:
+    name: 8 GB cards (MADLAD int8, TranslateGemma 4-bit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+          pip install -e ".[small]"
+      - name: Run 8 GB card checks
+        run: python scripts/smoke_cards.py madlad-int8 gemma-q4
