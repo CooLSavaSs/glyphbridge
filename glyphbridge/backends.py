@@ -24,7 +24,7 @@ import threading
 from collections import OrderedDict
 from typing import Iterable, List, Optional, Sequence, Tuple
 
-from .cards import CARDS, OPUS_RAM_MB, is_installed, offline, pinned
+from .cards import CARDS, OPUS_RAM_MB, _cached_repos, is_installed, offline, pinned
 
 Output = List[Tuple[str, Optional[float]]]  # (translation, model probability 0–1, or None if unknown)
 
@@ -116,13 +116,16 @@ class OpusBackend(Backend):
                 tok = MarianTokenizer.from_pretrained(name)
                 model = MarianMTModel.from_pretrained(name).to(self.device).eval()
                 return tok, model
-            except (ImportError, OSError, ValueError) as exc:
+            except Exception as exc:  # noqa: BLE001 - any load failure means "not available"
                 raise BackendUnavailable(str(exc)) from exc
         return self.cache.get(name, loader, OPUS_RAM_MB)
 
     def _model_for(self, source: str, target: str):
+        cached = _cached_repos() if offline() else None
         for tpl in self.templates:
             name = tpl.format(src=source, tgt=target)
+            if cached is not None and name not in cached:
+                continue  # offline: only installed pair cards
             loaded = self._load_named(name)
             if loaded is not None:
                 return name, loaded

@@ -21,12 +21,15 @@ from collections import OrderedDict
 from dataclasses import asdict, dataclass, field, replace
 from typing import Dict, List, Optional, Sequence
 
+import logging
 import os
 import unicodedata
 
 from . import cards, lid
 from .backends import Backend, BackendUnavailable, default_backends
 from .checker import Checker, consistency
+
+log = logging.getLogger("glyphbridge")
 
 PIVOT = "en"
 
@@ -98,10 +101,19 @@ class Engine:
     def candidates(self, source: str, target: str) -> List[list]:
         """Routes to try, best first. A route is a list of (backend, src, tgt) hops."""
         backends = self._ordered()
-        routes = [[(b, source, target)] for b in backends if b.supports(source, target)]
+
+        def ok(b, src, tgt):
+            # One broken card must not take the whole translation down.
+            try:
+                return b.supports(src, tgt)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("backend %s failed on %s-%s: %s", b.name, src, tgt, exc)
+                return False
+
+        routes = [[(b, source, target)] for b in backends if ok(b, source, target)]
         if PIVOT not in (source, target):
-            first = next((b for b in backends if b.supports(source, PIVOT)), None)
-            second = next((b for b in backends if b.supports(PIVOT, target)), None)
+            first = next((b for b in backends if ok(b, source, PIVOT)), None)
+            second = next((b for b in backends if ok(b, PIVOT, target)), None)
             if first and second:
                 routes.append([(first, source, PIVOT), (second, PIVOT, target)])
         return routes
