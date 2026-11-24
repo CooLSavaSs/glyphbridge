@@ -43,6 +43,8 @@ CARDS: Dict[str, Card] = {
                 "cis-lmu/glotlid", 500, "?", "Apache-2.0", "Size not measured yet."),
     "checker": Card("checker", "LaBSE — meaning checker, 109 languages",
                     "sentence-transformers/LaBSE", 1000, "~1.9 GB", "Apache-2.0"),
+    "whisper": Card("whisper", "Whisper small — speech to text, ~99 languages",
+                    "openai/whisper-small", 1000, "~1 GB", "MIT", "Reading audio files needs ffmpeg."),
 }
 
 OPUS_PREFIX = "opus:"
