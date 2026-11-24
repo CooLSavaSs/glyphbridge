@@ -24,7 +24,7 @@ import threading
 from collections import OrderedDict
 from typing import Iterable, List, Optional, Sequence, Tuple
 
-from .cards import CARDS, OPUS_RAM_MB, is_installed, offline
+from .cards import CARDS, OPUS_RAM_MB, is_installed, offline, pinned
 
 Output = List[Tuple[str, Optional[float]]]  # (translation, model probability 0–1, or None if unknown)
 
@@ -103,6 +103,7 @@ class OpusBackend(Backend):
     """Direct Opus-MT models; tries the larger tc-big model first."""
 
     name = "opus"
+    ram_mb = OPUS_RAM_MB
     templates = ("Helsinki-NLP/opus-mt-tc-big-{src}-{tgt}", "Helsinki-NLP/opus-mt-{src}-{tgt}")
 
     def __init__(self, cache: ModelCache = CACHE, device: str = "cpu"):
@@ -150,7 +151,8 @@ class MadladBackend(Backend):
     """MADLAD-400 3B: the wide-coverage fallback (400+ languages)."""
 
     name = "madlad"
-    model_id = os.environ.get("GLYPHBRIDGE_MADLAD_MODEL", "google/madlad400-3b-mt")
+    ram_mb = CARDS["madlad"].ram_mb
+    model_id, revision = pinned("madlad", "GLYPHBRIDGE_MADLAD_MODEL")
 
     def __init__(self, cache: ModelCache = CACHE, device: str = "cpu"):
         self.cache, self.device = cache, device
@@ -160,9 +162,10 @@ class MadladBackend(Backend):
             try:
                 from transformers import AutoTokenizer, T5ForConditionalGeneration  # type: ignore
                 import torch  # type: ignore
-                tok = AutoTokenizer.from_pretrained(self.model_id)
+                tok = AutoTokenizer.from_pretrained(self.model_id, revision=self.revision)
                 model = T5ForConditionalGeneration.from_pretrained(
-                    self.model_id, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True).to(self.device).eval()
+                    self.model_id, revision=self.revision, torch_dtype=torch.bfloat16,
+                    low_cpu_mem_usage=True).to(self.device).eval()
                 return tok, model
             except (ImportError, OSError, ValueError) as exc:
                 raise BackendUnavailable(str(exc)) from exc
@@ -205,7 +208,8 @@ class GemmaBackend(Backend):
     ``glyphbridge cards install gemma``)."""
 
     name = "gemma"
-    model_id = os.environ.get("GLYPHBRIDGE_GEMMA_MODEL", "google/translategemma-4b-it")
+    ram_mb = CARDS["gemma"].ram_mb
+    model_id, revision = pinned("gemma", "GLYPHBRIDGE_GEMMA_MODEL")
 
     def __init__(self, cache: ModelCache = CACHE, device: str = "cpu"):
         self.cache, self.device = cache, device
@@ -221,9 +225,10 @@ class GemmaBackend(Backend):
             try:
                 from transformers import AutoModelForImageTextToText, AutoProcessor  # type: ignore
                 import torch  # type: ignore
-                proc = AutoProcessor.from_pretrained(self.model_id)
+                proc = AutoProcessor.from_pretrained(self.model_id, revision=self.revision)
                 model = AutoModelForImageTextToText.from_pretrained(
-                    self.model_id, torch_dtype=torch.bfloat16, low_cpu_mem_usage=True).to(self.device).eval()
+                    self.model_id, revision=self.revision, torch_dtype=torch.bfloat16,
+                    low_cpu_mem_usage=True).to(self.device).eval()
                 return proc, model
             except (ImportError, OSError, ValueError) as exc:
                 raise BackendUnavailable(str(exc)) from exc
@@ -263,10 +268,10 @@ class GemmaBackend(Backend):
 # ---------------------------------------------------------------------------
 # Small cards for 8 GB PCs: same models, community-quantized.
 
-def _snapshot(repo: str, allow=None) -> str:
+def _snapshot(repo: str, allow=None, revision: Optional[str] = None) -> str:
     try:
         from huggingface_hub import snapshot_download  # type: ignore
-        return snapshot_download(repo, allow_patterns=allow)
+        return snapshot_download(repo, allow_patterns=allow, revision=revision)
     except Exception as exc:  # not installed, offline, gated...
         raise BackendUnavailable(str(exc)) from exc
 
@@ -275,7 +280,8 @@ class MadladInt8Backend(Backend):
     """MADLAD-400 3B converted to CTranslate2 int8 (~3 GB RAM instead of ~6.5 GB)."""
 
     name = "madlad-int8"
-    repo = os.environ.get("GLYPHBRIDGE_MADLAD_INT8_MODEL", "Nextcloud-AI/madlad400-3b-mt-ct2-int8")
+    ram_mb = CARDS["madlad-int8"].ram_mb
+    repo, revision = pinned("madlad-int8", "GLYPHBRIDGE_MADLAD_INT8_MODEL")
 
     def __init__(self, cache: ModelCache = CACHE, device: str = "cpu"):
         self.cache, self.device = cache, device
@@ -287,7 +293,7 @@ class MadladInt8Backend(Backend):
                 import sentencepiece as spm  # type: ignore
             except ImportError as exc:
                 raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
-            path = _snapshot(self.repo)
+            path = _snapshot(self.repo, revision=self.revision)
             sp_file = next((os.path.join(path, f) for f in ("spiece.model", "sentencepiece.model")
                             if os.path.exists(os.path.join(path, f))), None)
             if sp_file is None:
@@ -345,7 +351,8 @@ class GemmaQ4Backend(Backend):
     """TranslateGemma 4B quantized to 4 bits (GGUF, ~3 GB RAM), run with llama.cpp."""
 
     name = "gemma-q4"
-    repo = os.environ.get("GLYPHBRIDGE_GEMMA_GGUF_REPO", "anilb/translategemma-gguf")
+    ram_mb = CARDS["gemma-q4"].ram_mb
+    repo, revision = pinned("gemma-q4", "GLYPHBRIDGE_GEMMA_GGUF_REPO")
     filename = os.environ.get("GLYPHBRIDGE_GEMMA_GGUF_FILE", "translategemma-4b-it.Q4_K_M.gguf")
 
     def __init__(self, cache: ModelCache = CACHE, device: str = "cpu"):
@@ -362,7 +369,8 @@ class GemmaQ4Backend(Backend):
                 from llama_cpp import Llama  # type: ignore
             except ImportError as exc:
                 raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
-            path = os.path.join(_snapshot(self.repo, allow=[self.filename]), self.filename)
+            path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
+                                self.filename)
             return Llama(model_path=path, n_ctx=2048, n_threads=os.cpu_count() or 2, verbose=False)
         return self.cache.get(self.repo, loader, CARDS["gemma-q4"].ram_mb)
 
