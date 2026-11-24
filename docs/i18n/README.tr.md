@@ -19,7 +19,7 @@
 | Sürüm | Özellik | Durum |
 |---|---|---|
 | **v0.1** | Model yönlendiricili metin çevirisi (Opus-MT → TranslateGemma → MADLAD-400), anlam denetçisi, sadece gerekeni kuran model kartları, CLI, API anahtarlı REST API, MCP sunucusu | 🧪 Önizleme |
-| **v0.2** | **Resimlerdeki** (OCR) ve **belgelerdeki** (PDF, DOCX) yazıları düzeni koruyarak çevirme; güven puanı filtresi | 📋 Planlanan |
+| **v0.2** | **Belgeler**: DOCX yerinde çevrilir (başlık, liste, tablo korunur), PDF metni → metin, TXT/MD; **resimler** Tesseract OCR ile. Sırada: PDF düzeni, budanmış int8 kartlar | 🧪 Kısmen önizlemede |
 | **v0.3** | **Sesli** çeviri: konuşma → metin → çeviri → ses | 📋 Planlanan |
 | **v0.4** | **Osmanlıca**: matbu ve el yazısı (rika, divani) OCR, transliterasyon, modern Türkçe | 📋 Planlanan |
 | **Deneysel** | **Mısır hiyeroglifleri** ve **çivi yazısı** (Akadca, Sümerce) — araştırmacılarla iş birliği içinde | 🔬 Araştırma |
@@ -45,6 +45,8 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install "glyphbridge[all] @ git+https://github.com/CooLSavaSs/glyphbridge"
 
 glyphbridge translate "Merhaba dünya" --from tr --to en
+glyphbridge translate --file rapor.docx --to en      # -> rapor.en.docx
+glyphbridge translate --file foto.jpg --from tr --to en  # OCR -> foto.en.txt
 glyphbridge serve --port 8080 --api-key "uzun-rastgele-bir-anahtar"
 ```
 
