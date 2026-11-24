@@ -58,15 +58,19 @@ glyphbridge serve --port 8080 --api-key "uzun-rastgele-bir-anahtar"
 
 Glyphbridge kendini kanıtlamış açık modelleri kullanır. Bir **yönlendirici** her dil çifti için en iyi modeli seçer. **Anlam denetçisi** her çeviriyi özgün cümleyle karşılaştırır: tutmazsa cümle sıradaki modele gider, hiçbiri tutmazsa özgünüyle birlikte ⚠ işaretiyle gösterilir.
 
-| Görev | Model (kart) | Diller | Lisans | RAM (tahmini) |
+| Görev | Model (kart) | Diller | Lisans | RAM |
 |---|---|---|---|---|
 | Hızlı yol | Opus-MT / tc-big (`opus:<kaynak>-<hedef>`) | kart başına bir dil çifti | CC-BY 4.0 | ~600 MB |
-| En yüksek kalite, **8 GB PC** *(isteğe bağlı)* | TranslateGemma 4B 4-bit GGUF (`gemma-q4`) | ~55 değerlendirilmiş | Gemma şartları | ~3,5 GB (tahmini) |
-| Nadir diller, **8 GB PC** | MADLAD-400 3B int8 CTranslate2 (`madlad-int8`) | 400+ | Apache 2.0 | ~3,5 GB (tahmini) |
+| En yüksek kalite, **8 GB PC** *(isteğe bağlı)* | TranslateGemma 4B 4-bit GGUF (`gemma-q4`) | ~55 değerlendirilmiş | Gemma şartları | **4,6 GB ölçüldü** (tepe) |
+| Nadir diller, **8 GB PC** | MADLAD-400 3B int8 CTranslate2 (`madlad-int8`) | 400+ | Apache 2.0 | **5,5 GB ölçüldü** (tepe) |
 | En yüksek kalite, tam boy *(isteğe bağlı)* | TranslateGemma 4B (`gemma`) | ~55 değerlendirilmiş, resim de okur | Gemma şartları | ~9 GB (tahmini) |
 | Nadir diller, tam boy *(isteğe bağlı)* | MADLAD-400 3B (`madlad`) | 400+ (Latince, Süryanice…) | Apache 2.0 | **6,5 GB ölçüldü** |
 | Dil tanıma | GlotLID (`lid`) | 1.600+ | Apache 2.0 | küçük |
 | Anlam denetçisi | LaBSE (`checker`) | 109 | Apache 2.0 | ~1 GB |
+
+*Ölçüldü* yazan RAM değerleri, CI'da CPU üzerinde çeviri yapan bir sürecin tamamının (Python, kütüphaneler ve model) tepe değeridir; diğerleri tahmindir. 8 GB'lık bir bilgisayarda 8 GB kartları sığar ama başka programlara az yer kalır.
+
+**Şu ana kadarki kalite** (golden-v1: elle hazırlanmış küçük bir kontrol seti, benchmark değil): Opus-MT Türkçe→İngilizce'de chrF **75,6**, İngilizce→Türkçe'de **76,8** alıyor. İsimler, sayılar, olumsuzluk ve teknik metin iyi; deyimler zayıf (chrF 22–28) ve sıradaki iyileştirme konusu. Latince regresyon örneği *Gallia est omnis divisa in partes tres* MADLAD tarafından hâlâ yanlış çevriliyor; bir kart doğru çevirene kadar sette kalacak.
 
 ### Model kartları: yalnızca gereken çalışır
 
