@@ -1,0 +1,20 @@
+# golden-v1. Columns: category<TAB>source<TAB>reference. Hand-written hard cases; a sanity check, not a benchmark.
+# Categories: general, names, numbers, dates, negation, idioms, technical, long.
+general	Bugün hava çok güzel.	The weather is very nice today.
+general	Çocuklar bahçede top oynuyorlar.	The children are playing ball in the garden.
+names	Ahmet'in kız kardeşi İstanbul'da yaşıyor.	Ahmet's sister lives in Istanbul.
+names	Elif yarın Londra'ya uçacak.	Elif will fly to London tomorrow.
+names	Ankara, Türkiye'nin başkentidir.	Ankara is the capital of Turkey.
+numbers	Fiyatı 1.250 liradan 990 liraya düştü.	The price dropped from 1,250 lira to 990 lira.
+numbers	Tren 3 saat gecikti.	The train was 3 hours late.
+dates	Toplantı saat 14:30'da başlayacak.	The meeting will start at 14:30.
+dates	Sözleşme 15 Mart 2025'te sona eriyor.	The contract expires on 15 March 2025.
+negation	Bu ilacı aç karnına almayın.	Do not take this medicine on an empty stomach.
+negation	Hiç kimse toplantıya gelmedi.	Nobody came to the meeting.
+negation	Kapıyı kapatmayı unutma.	Don't forget to close the door.
+negation	Bu kitabı okumadan önce yorum yapma.	Don't comment on this book before reading it.
+idioms	Bu iş çok kolay, çocuk oyuncağı.	This job is very easy, child's play.
+idioms	Gözden ırak olan gönülden de ırak olur.	Out of sight, out of mind.
+technical	Sunucuyu yeniden başlatmadan önce yapılandırma dosyasını yedekleyin.	Back up the configuration file before restarting the server.
+technical	Uygulama 8 GB RAM'li bir bilgisayarda çalışır.	The application runs on a computer with 8 GB of RAM.
+long	Dün akşam eve geç geldim çünkü trafik çok yoğundu; yine de annemle birlikte yemek yedik ve uzun uzun sohbet ettik.	I came home late last night because the traffic was very heavy; still, I had dinner with my mother and we talked for a long time.

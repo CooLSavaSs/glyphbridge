@@ -1,0 +1,4 @@
+# golden-v1. Columns: category<TAB>source<TAB>reference. Hand-written hard cases; a sanity check, not a benchmark.
+# Categories: general, names, numbers, dates, negation, idioms, technical, long.
+low-resource	Gallia est omnis divisa in partes tres.	All Gaul is divided into three parts.
+low-resource	Roma non uno die aedificata est.	Rome was not built in one day.

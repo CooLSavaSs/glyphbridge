@@ -1,0 +1,13 @@
+# golden-v1. Columns: category<TAB>source<TAB>reference. Hand-written hard cases; a sanity check, not a benchmark.
+# Categories: general, names, numbers, dates, negation, idioms, technical, long.
+general	The weather is very nice today.	Bugün hava çok güzel.
+names	Maria lives in Berlin with her two cats.	Maria iki kedisiyle Berlin'de yaşıyor.
+numbers	The price dropped from 1,250 lira to 990 lira.	Fiyat 1.250 liradan 990 liraya düştü.
+numbers	The train was 3 hours late.	Tren 3 saat gecikti.
+dates	The meeting will start at 14:30.	Toplantı saat 14:30'da başlayacak.
+dates	Please call me before Friday.	Lütfen cumadan önce beni ara.
+negation	Do not take this medicine on an empty stomach.	Bu ilacı aç karnına almayın.
+negation	Nobody came to the meeting.	Toplantıya kimse gelmedi.
+idioms	It's raining cats and dogs.	Bardaktan boşanırcasına yağmur yağıyor.
+technical	Back up the configuration file before restarting the server.	Sunucuyu yeniden başlatmadan önce yapılandırma dosyasını yedekleyin.
+long	I came home late last night because the traffic was very heavy, but we still had dinner together.	Trafik çok yoğun olduğu için dün gece eve geç geldim ama yine de birlikte akşam yemeği yedik.
