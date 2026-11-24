@@ -34,13 +34,15 @@ jobs:
         env:
           GLYPHBRIDGE_BACKENDS: opus,opus-group,madlad-int8
         run: python scripts/golden.py tests/golden/v1/la-en.tsv:0 --json golden-opus-itc.json
-      - name: Golden-v2, default chain (report only until the first measured run sets thresholds)
+      # Thresholds = first measured golden-v2 score (CI #96/#97) minus ~8 chrF. A real quality
+      # drop fails the run; normal noise does not. Raise them when scores improve.
+      - name: Golden-v2 regression, default chain
         run: |
-          python scripts/golden.py tests/golden/v2/tr-en.tsv:0 tests/golden/v2/en-tr.tsv:0             tests/golden/v2/de-en.tsv:0 tests/golden/v2/fr-en.tsv:0 tests/golden/v2/es-en.tsv:0             tests/golden/v2/ru-en.tsv:0 tests/golden/v2/ar-en.tsv:0 tests/golden/v2/zh-en.tsv:0             --json golden-v2-opus.json
-      - name: Golden-v2, Latin without TranslateGemma (report only)
+          python scripts/golden.py tests/golden/v2/tr-en.tsv:65 tests/golden/v2/en-tr.tsv:68             tests/golden/v2/de-en.tsv:77 tests/golden/v2/fr-en.tsv:72 tests/golden/v2/es-en.tsv:78             tests/golden/v2/ru-en.tsv:66 tests/golden/v2/ar-en.tsv:68 tests/golden/v2/zh-en.tsv:50             --json golden-v2-opus.json
+      - name: Golden-v2 regression, Latin without TranslateGemma
         env:
           GLYPHBRIDGE_BACKENDS: opus,opus-group,madlad-int8
-        run: python scripts/golden.py tests/golden/v2/la-en.tsv:0 --json golden-v2-opus-itc.json
+        run: python scripts/golden.py tests/golden/v2/la-en.tsv:41 --json golden-v2-opus-itc.json
 
   madlad:
     name: MADLAD-400 3B (rare languages)
@@ -129,3 +131,10 @@ jobs:
         run: |
           python scripts/golden.py tests/golden/v1/tr-en.tsv:0 tests/golden/v1/en-tr.tsv:0 --json golden-hymt2.json
           python scripts/golden.py tests/golden/v2/tr-en.tsv:0 tests/golden/v2/en-tr.tsv:0             tests/golden/v2/de-en.tsv:0 tests/golden/v2/fr-en.tsv:0 tests/golden/v2/es-en.tsv:0             tests/golden/v2/ru-en.tsv:0 tests/golden/v2/ar-en.tsv:0 tests/golden/v2/zh-en.tsv:0             --json golden-v2-hymt2.json
+      - name: Golden-v2 with the measured route table (all 8 GB cards installed, report only)
+        env:
+          GLYPHBRIDGE_ENABLE_HYMT: "1"
+          GLYPHBRIDGE_BACKENDS: hymt2-q4,opus,gemma-q4,opus-group,madlad-int8
+          GLYPHBRIDGE_GEMMA_LANGS: en,tr,la
+        run: |
+          python scripts/golden.py tests/golden/v2/tr-en.tsv:0 tests/golden/v2/en-tr.tsv:0             tests/golden/v2/de-en.tsv:0 tests/golden/v2/fr-en.tsv:0 tests/golden/v2/es-en.tsv:0             tests/golden/v2/ru-en.tsv:0 tests/golden/v2/ar-en.tsv:0 tests/golden/v2/zh-en.tsv:0             tests/golden/v2/la-en.tsv:0 --json golden-v2-routes.json

@@ -740,3 +740,18 @@ def test_cache_survives_changing_free_ram(monkeypatch):
     e.translate("Merhaba dünya", "en", "tr")
     e.translate("Merhaba dünya", "en", "tr")
     assert calls == ["opus"]
+
+
+def test_measured_route_table_puts_best_card_first(monkeypatch):
+    from glyphbridge import routes
+    a, b = FakeBackend("hymt2-q4", OPUS.table), FakeBackend("opus", OPUS.table)
+    e = Engine(backends=[a, b], checker=FakeChecker())
+    # tr-en: opus measured best although hymt2-q4 comes first in the default order.
+    assert [r[0][0].name for r in e.candidates("tr", "en")][:2] == ["opus", "hymt2-q4"]
+    monkeypatch.setenv("GLYPHBRIDGE_ROUTES", "0")
+    assert [r[0][0].name for r in e.candidates("tr", "en")][:2] == ["hymt2-q4", "opus"]
+    monkeypatch.delenv("GLYPHBRIDGE_ROUTES")
+    # A pair without numbers keeps the default order.
+    assert routes.rank(["hymt2-q4", "opus"], "xx", "yy") == [0, 1]
+    for pair, (cards, why) in routes.ROUTES.items():
+        assert cards and why and "-" in pair

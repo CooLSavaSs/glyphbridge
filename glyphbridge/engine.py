@@ -30,6 +30,7 @@ from .backends import Backend, BackendUnavailable, default_backends
 from .checker import Checker, consistency
 from .emotion import Emotion
 from .memory import Memory
+from . import routes as routes_table
 
 log = logging.getLogger("glyphbridge")
 
@@ -96,6 +97,7 @@ class Engine:
                 # number follows free RAM and changes all the time on a real PC, which made
                 # every lookup a cache miss.
                 tuple(b.name for b in self._ordered()),
+                routes_table.VERSION if routes_table.enabled() else None,
                 self.memory.fingerprint(), self.emotion.enabled())
 
     def _ordered(self) -> List[Backend]:
@@ -123,7 +125,17 @@ class Engine:
                 log.warning("backend %s failed on %s-%s: %s", b.name, src, tgt, exc)
                 return False
 
-        routes = [[(b, source, target)] for b in backends if ok(b, source, target)]
+        direct = [b for b in backends if ok(b, source, target)]
+        # Measured route table: for pairs with golden-set numbers the best card goes first.
+        # An explicit GLYPHBRIDGE_PREFER=quality wins over it, and a card that does not fit
+        # the RAM budget stays behind the ones that do.
+        if os.environ.get("GLYPHBRIDGE_PREFER", "speed") != "quality":
+            budget = cards.ram_budget_mb()
+            keys = routes_table.rank([b.name for b in direct], source, target)
+            direct = [b for _, _, b in sorted(
+                ((1 if getattr(b, "ram_mb", 0) > budget else 0, k, b) for k, b in zip(keys, direct)),
+                key=lambda t: (t[0], t[1]))]
+        routes = [[(b, source, target)] for b in direct]
         if PIVOT not in (source, target):
             first = next((b for b in backends if ok(b, source, PIVOT)), None)
             second = next((b for b in backends if ok(b, PIVOT, target)), None)
