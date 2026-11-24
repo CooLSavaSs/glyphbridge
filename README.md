@@ -77,6 +77,20 @@ RAM figures marked *measured* are the peak of a whole process (Python, libraries
 
 Not used by default because their licenses forbid commercial use or exclude regions: NLLB-200 (CC-BY-NC), Cohere North Small Translate (CC-BY-NC), Tencent Hy-MT2 (community license, excludes the EU).
 
+### Translation memory: pin your own translations
+
+Idioms and house terms are where models go wrong most often. A translation memory file fixes how a sentence or expression is translated; it is used before any model, and matching ignores case, extra spaces and the final punctuation mark:
+
+```text
+# source_lang<TAB>target_lang<TAB>source<TAB>translation
+tr	en	Gözden ırak olan gönülden de ırak olur.	Out of sight, out of mind.
+```
+
+```bash
+glyphbridge translate --memory idioms.tsv --to en "Gözden ırak olan gönülden de ırak olur."
+export GLYPHBRIDGE_MEMORY=idioms.tsv   # for the API, MCP and Python
+```
+
 ### Model cards: only what you need runs
 
 Every model is a **card**. Install only the cards you need; at run time only the card the current sentence needs is loaded, and cards are unloaded when the RAM budget (default: 60% of free RAM) is full. That is how Glyphbridge stays usable on an 8 GB PC.
