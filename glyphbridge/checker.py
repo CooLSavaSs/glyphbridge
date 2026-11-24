@@ -101,9 +101,25 @@ def consistency(source: str, translation: str) -> List[str]:
         else:
             problems.append(f"number {n} missing")
     if _is_latin(source) and _is_latin(translation):
-        low = translation.lower()
+        words = [_fold(w) for w in _WORD.findall(translation)]
         for name in _names(source):
-            stem = name.lower()[: max(3, len(name) - 2)]   # allow small suffix changes
-            if stem not in low:
+            if _fold(name) in _NOT_NAMES:
+                continue
+            # A short folded prefix allows suffixes and exonyms (Türkiye/Turkey, Londra/London,
+            # İstanbul/Istanbul) while still catching a name that was dropped or replaced.
+            prefix = _fold(name)[:4]
+            if not any(w.startswith(prefix) for w in words):
                 problems.append(f"name {name} missing")
     return problems
+
+
+# Words some languages capitalise that are not names (English weekdays and months).
+_NOT_NAMES = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+              "january", "february", "march", "april", "may", "june", "july", "august",
+              "september", "october", "november", "december"}
+
+
+def _fold(word: str) -> str:
+    """Lower-case without accents: İstanbul -> istanbul, Türkiye -> turkiye."""
+    word = word.replace("İ", "I").replace("ı", "i").lower()
+    return "".join(c for c in unicodedata.normalize("NFKD", word) if not unicodedata.combining(c))

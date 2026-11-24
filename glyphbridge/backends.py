@@ -315,8 +315,9 @@ class MadladInt8Backend(Backend):
             raise BackendUnavailable("MADLAD-400 int8 could not be loaded")
         translator, sp = loaded
         batch = [sp.encode(f"<2{target}> {t}", out_type=str) for t in texts]
+        # Scores come back length-normalised (length_penalty=1): mean log-prob per token.
         res = translator.translate_batch(batch, beam_size=4, max_decoding_length=512,
-                                         return_scores=True, normalize_scores=True)
+                                         return_scores=True)
         return [(sp.decode(r.hypotheses[0]), _probability(r.scores[0])) for r in res]
 
 
