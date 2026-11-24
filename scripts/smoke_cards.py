@@ -1,6 +1,6 @@
 """Real-model smoke tests for Glyphbridge cards. Used by .github/workflows/cards.yml.
 
-    python scripts/smoke_cards.py lid checker ocr pipeline
+    python scripts/smoke_cards.py lid checker ocr pipeline speech
     python scripts/smoke_cards.py madlad
 """
 
@@ -42,11 +42,15 @@ def test_ocr():
     from PIL import Image, ImageDraw, ImageFont
     from glyphbridge.documents import ocr_image
     img = Image.new("RGB", (900, 160), "white")
-    ImageDraw.Draw(img).text((20, 40), "Merhaba dünya", fill="black", font=ImageFont.load_default(size=64))
+    try:  # a font with Turkish letters (ü, ş, ğ); the built-in default font has none
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 64)
+    except OSError:
+        font = ImageFont.load_default(size=64)
+    ImageDraw.Draw(img).text((20, 40), "Merhaba dünya", fill="black", font=font)
     path = os.path.join(tempfile.mkdtemp(), "ocr.png")
     img.save(path)
     text = ocr_image(path, "tr")
-    check("ocr reads Turkish text", "Merhaba" in text, repr(text.strip()))
+    check("ocr reads Turkish text incl. ü", "Merhaba dünya" in text, repr(text.strip()))
 
 
 def test_pipeline():
@@ -73,7 +77,23 @@ def test_madlad():
         pass
 
 
-TESTS = {"lid": test_lid, "checker": test_checker, "ocr": test_ocr, "pipeline": test_pipeline, "madlad": test_madlad}
+def test_speech():
+    import subprocess
+    from glyphbridge.speech import speak, transcribe, translate_audio
+    d = tempfile.mkdtemp()
+    wav = os.path.join(d, "talk.wav")
+    speak("Bugün hava çok güzel. Parka gidelim.", "tr", wav)
+    flac = os.path.join(d, "talk.flac")  # also exercise ffmpeg decoding of a compressed file
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", wav, flac], check=True)
+    heard = transcribe(flac, "tr")
+    check("whisper transcribes Turkish speech", "hava" in heard.lower(), repr(heard))
+    out, results = translate_audio(flac, target="en", source="tr", speak_out=os.path.join(d, "talk.en.wav"))
+    text = open(out, encoding="utf-8").read()
+    check("speech -> en translation", "weather" in text.lower(), repr(text))
+    check("speech -> en audio written", os.path.getsize(os.path.join(d, "talk.en.wav")) > 1000)
+
+
+TESTS = {"lid": test_lid, "checker": test_checker, "ocr": test_ocr, "pipeline": test_pipeline, "madlad": test_madlad, "speech": test_speech}
 
 if __name__ == "__main__":
     for name in sys.argv[1:] or list(TESTS):
