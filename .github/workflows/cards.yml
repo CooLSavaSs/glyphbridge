@@ -30,6 +30,11 @@ jobs:
         run: |
           pip install sacrebleu
           python scripts/golden.py tests/golden/v1/tr-en.tsv tests/golden/v1/en-tr.tsv --min-chrf 40 --json golden-opus.json
+      - name: Golden set, Latin with the Opus-MT Italic group model (report only, experiment)
+        env:
+          GLYPHBRIDGE_OPUS_GROUPS: "1"
+          GLYPHBRIDGE_BACKENDS: opus
+        run: python scripts/golden.py tests/golden/v1/la-en.tsv:0 --json golden-opus-itc.json
 
   madlad:
     name: MADLAD-400 3B (rare languages)
