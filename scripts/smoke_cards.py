@@ -2,6 +2,7 @@
 
     python scripts/smoke_cards.py lid checker ocr pipeline speech
     python scripts/smoke_cards.py madlad
+    python scripts/smoke_cards.py --isolate madlad-int8 gemma-q4   # one process per card
 """
 
 import os
@@ -121,18 +122,32 @@ def test_gemma_q4():
 
 
 def _ram(label):
+    """Print current and peak RAM of this process. Run with --isolate so each card
+    gets its own process and the numbers belong to that card alone."""
+    import resource
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6  # KiB on Linux -> GB
     try:
         import psutil
-        print(f"INFO process RAM after {label}: {psutil.Process().memory_info().rss / 1e9:.1f} GB", flush=True)
+        now = psutil.Process().memory_info().rss / 1e9
+        print(f"INFO RAM {label}: now {now:.2f} GB, peak {peak:.2f} GB", flush=True)
     except ImportError:
-        pass
+        print(f"INFO RAM {label}: peak {peak:.2f} GB", flush=True)
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as fh:
+            fh.write(f"- **{label}** peak RAM (own process, incl. Python and libraries): {peak:.2f} GB\n")
 
 
 TESTS = {"lid": test_lid, "checker": test_checker, "ocr": test_ocr, "pipeline": test_pipeline, "madlad": test_madlad, "speech": test_speech,
          "madlad-int8": test_madlad_int8, "gemma-q4": test_gemma_q4}
 
 if __name__ == "__main__":
-    for name in sys.argv[1:] or list(TESTS):
+    args = sys.argv[1:]
+    if args and args[0] == "--isolate":  # one fresh process per card, for honest RAM numbers
+        import subprocess
+        codes = [subprocess.call([sys.executable, __file__, name]) for name in args[1:]]
+        sys.exit(1 if any(codes) else 0)
+    for name in args or list(TESTS):
         try:
             TESTS[name]()
         except Exception as exc:  # report and continue with the next card
