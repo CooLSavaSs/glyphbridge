@@ -32,13 +32,19 @@ class Card:
 
 
 CARDS: Dict[str, Card] = {
-    "madlad": Card("madlad", "MADLAD-400 3B — 400+ languages, rare languages",
+    "madlad-int8": Card("madlad-int8", "MADLAD-400 3B int8 — 400+ languages, fits 8 GB PCs",
+                        "Nextcloud-AI/madlad400-3b-mt-ct2-int8", 3500, "~3 GB", "Apache-2.0",
+                        "Default rare-language card (CTranslate2)."),
+    "gemma-q4": Card("gemma-q4", "TranslateGemma 4B 4-bit — highest quality, fits 8 GB PCs",
+                     "anilb/translategemma-gguf", 3500, "~2.5 GB", "Gemma terms",
+                     "Community Q4_K_M quantization run with llama.cpp. Installing it turns it on."),
+    "madlad": Card("madlad", "MADLAD-400 3B full size — opt-in, needs ~8 GB free RAM",
                    "google/madlad400-3b-mt", 6500, "~12 GB", "Apache-2.0",
-                   "Loaded in bfloat16. An int8 card (~3 GB RAM) is planned."),
-    "gemma": Card("gemma", "TranslateGemma 4B — highest quality, ~55 languages, images",
+                   "Loaded in bfloat16 (6.5 GB measured). Prefer madlad-int8 on 8 GB PCs."),
+    "gemma": Card("gemma", "TranslateGemma 4B full size — gated, images",
                   "google/translategemma-4b-it", 9000, "~8.6 GB", "Gemma terms",
-                  "Gated: accept the terms on Hugging Face and log in first. "
-                  "Needs ~16 GB RAM today; a 4-bit GGUF card for 8 GB PCs is planned."),
+                  "Gated: accept the terms on Hugging Face and log in first. Needs ~16 GB RAM; "
+                  "use gemma-q4 on 8 GB PCs."),
     "lid": Card("lid", "GlotLID — language identification, 1,600+ languages",
                 "cis-lmu/glotlid", 500, "?", "Apache-2.0", "Size not measured yet."),
     "checker": Card("checker", "LaBSE — meaning checker, 109 languages",
@@ -100,6 +106,9 @@ def install(card_id: str) -> str:
             except Exception as exc:  # try the base model next
                 last = exc
         raise RuntimeError(f"No Opus-MT model for {card_id}: {last}")
+    if card_id == "gemma-q4":  # the repo also holds a 12B file; fetch only the 4B one
+        from .backends import GemmaQ4Backend
+        return snapshot_download(GemmaQ4Backend.repo, allow_patterns=[GemmaQ4Backend.filename])
     return snapshot_download(resolve(card_id).repo)
 
 
