@@ -7,7 +7,7 @@ on:
 
 jobs:
   small-cards:
-    name: GlotLID, LaBSE checker, OCR, full pipeline
+    name: GlotLID, LaBSE checker, OCR, speech, full pipeline
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,11 +16,11 @@ jobs:
           python-version: "3.12"
       - name: Install
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-tur
+          sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-tur espeak-ng ffmpeg fonts-dejavu-core
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -e ".[lid,checker,ocr,docs]"
       - name: Run real-model checks
-        run: python scripts/smoke_cards.py lid checker ocr pipeline
+        run: python scripts/smoke_cards.py lid checker ocr pipeline speech
 
   madlad:
     name: MADLAD-400 3B (rare languages)
