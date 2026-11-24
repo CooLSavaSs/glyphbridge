@@ -120,16 +120,8 @@ class OpusBackend(Backend):
                 raise BackendUnavailable(str(exc)) from exc
         return self.cache.get(name, loader, OPUS_RAM_MB)
 
-    # Languages without a direct pair model, read by a multi-language group model.
-    # Group models into English need no language tag on the source side.
-    groups = {"la": "itc"}
-
     def _names(self, source: str, target: str):
-        names = [tpl.format(src=source, tgt=target) for tpl in self.templates]
-        # Off by default until golden-v1 shows the group model beats the alternatives.
-        if source in self.groups and target == "en" and os.environ.get("GLYPHBRIDGE_OPUS_GROUPS") == "1":
-            names.append(f"Helsinki-NLP/opus-mt-{self.groups[source]}-en")
-        return names
+        return [tpl.format(src=source, tgt=target) for tpl in self.templates]
 
     def _model_for(self, source: str, target: str):
         cached = _cached_repos() if offline() else None
@@ -406,10 +398,27 @@ class GemmaQ4Backend(Backend):
         return out
 
 
+class OpusGroupBackend(OpusBackend):
+    """Opus-MT multi-language group models into English, for languages without a pair
+    model. Group models into English need no language tag on the source side.
+
+    Placed after TranslateGemma and before MADLAD because golden-v1 measured, for
+    Latin -> English: gemma-q4 84.9, opus-mt-itc-en 61.1, madlad-int8 38.7 (chrF)."""
+
+    name = "opus-group"
+    groups = {"la": "itc"}
+
+    def _names(self, source: str, target: str):
+        if source in self.groups and target == "en":
+            return [f"Helsinki-NLP/opus-mt-{self.groups[source]}-en"]
+        return []
+
+
 def default_backends(cache: ModelCache = CACHE) -> List[Backend]:
-    order = os.environ.get("GLYPHBRIDGE_BACKENDS", "opus,gemma-q4,gemma,madlad-int8,madlad").split(",")
+    order = os.environ.get("GLYPHBRIDGE_BACKENDS",
+                           "opus,gemma-q4,gemma,opus-group,madlad-int8,madlad").split(",")
     known = {"opus": OpusBackend, "gemma-q4": GemmaQ4Backend, "gemma": GemmaBackend,
-             "madlad-int8": MadladInt8Backend, "madlad": MadladBackend}
+             "opus-group": OpusGroupBackend, "madlad-int8": MadladInt8Backend, "madlad": MadladBackend}
     return [known[n.strip()](cache) for n in order if n.strip() in known]
 
 
