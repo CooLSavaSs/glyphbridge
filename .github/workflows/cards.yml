@@ -26,6 +26,10 @@ jobs:
           pip install -e ".[lid,checker,ocr,docs]"
       - name: Run real-model checks
         run: python scripts/smoke_cards.py lid checker ocr pipeline speech
+      - name: Golden-set regression (Opus-MT + checker)
+        run: |
+          pip install sacrebleu
+          python scripts/golden.py tests/golden/v1/tr-en.tsv tests/golden/v1/en-tr.tsv --min-chrf 40 --json golden-opus.json
 
   madlad:
     name: MADLAD-400 3B (rare languages)
@@ -59,3 +63,13 @@ jobs:
           pip install -e ".[small]"
       - name: Run 8 GB card checks
         run: python scripts/smoke_cards.py madlad-int8 gemma-q4
+      - name: Verify SHA-256 of the 8 GB cards
+        run: |
+          glyphbridge cards verify madlad-int8
+          glyphbridge cards verify gemma-q4
+      - name: Golden set, low-resource (MADLAD int8, report only, includes the Gallia case)
+        env:
+          GLYPHBRIDGE_OFFLINE: "1"
+        run: |
+          pip install sacrebleu
+          python scripts/golden.py tests/golden/v1/la-en.tsv:0 --json golden-8gb.json
