@@ -63,7 +63,7 @@ Glyphbridge kendini kanıtlamış açık modelleri kullanır. Bir **yönlendiric
 | Hızlı yol | Opus-MT / tc-big (`opus:<kaynak>-<hedef>`) | kart başına bir dil çifti | CC-BY 4.0 | ~600 MB |
 | En yüksek kalite, **8 GB PC** *(isteğe bağlı)* | TranslateGemma 4B 4-bit GGUF (`gemma-q4`) | ~55 değerlendirilmiş | Gemma şartları | **4,6–4,8 GB ölçüldü** (tepe) |
 | Nadir diller, **8 GB PC** | MADLAD-400 3B int8 CTranslate2 (`madlad-int8`) | 400+ | Apache 2.0 | **3,3–5,5 GB ölçüldü** (tepe) |
-| En yüksek kalite, tam boy *(isteğe bağlı)* | TranslateGemma 4B (`gemma`) | ~55 değerlendirilmiş, resim de okur | Gemma şartları | ~9 GB (tahmini) |
+| En yüksek kalite, tam boy *(isteğe bağlı)* | TranslateGemma 4B (`gemma`) | ~55 değerlendirilmiş, resim de okur | Gemma şartları | **9,4 GB ölçüldü** (tepe) |
 | Nadir diller, tam boy *(isteğe bağlı)* | MADLAD-400 3B (`madlad`) | 400+ (Latince, Süryanice…) | Apache 2.0 | **6,5 GB ölçüldü** |
 | Dil tanıma | GlotLID (`lid`) | 1.600+ | Apache 2.0 | küçük |
 | Anlam denetçisi | LaBSE (`checker`) | 109 | Apache 2.0 | ~1 GB |
