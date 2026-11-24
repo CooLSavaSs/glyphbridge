@@ -10,7 +10,10 @@ and cards are unloaded again when the RAM budget is full. Nothing else runs.
     glyphbridge cards remove madlad
 
 RAM and disk figures are estimates for CPU use (weights × bytes per weight), not
-measurements; real use is usually somewhat higher.
+measurements, unless marked "measured"; real use is usually somewhat higher.
+
+Every non-Opus card is pinned to an exact model revision. Opus-MT pair cards come
+from the official Helsinki-NLP organisation and follow its latest release.
 """
 
 from __future__ import annotations
@@ -29,28 +32,38 @@ class Card:
     disk: str
     license: str
     note: str = ""
+    # Exact Hugging Face commit to download, so a model cannot change under users'
+    # feet (supply-chain safety). Update deliberately, after testing the new version.
+    revision: Optional[str] = None
 
 
 CARDS: Dict[str, Card] = {
     "madlad-int8": Card("madlad-int8", "MADLAD-400 3B int8 — 400+ languages, fits 8 GB PCs",
                         "Nextcloud-AI/madlad400-3b-mt-ct2-int8", 3500, "~3 GB", "Apache-2.0",
-                        "Default rare-language card (CTranslate2)."),
+                        "Default rare-language card (CTranslate2).",
+                    revision="aa32bbdeba7880eff2096ec044cb155a340a9400"),
     "gemma-q4": Card("gemma-q4", "TranslateGemma 4B 4-bit — highest quality, fits 8 GB PCs",
                      "anilb/translategemma-gguf", 3500, "~2.5 GB", "Gemma terms",
-                     "Community Q4_K_M quantization run with llama.cpp. Installing it turns it on."),
+                     "Community Q4_K_M quantization run with llama.cpp. Installing it turns it on.",
+                    revision="b4a4747a01c36cadf60238985cd31dc6ea66b760"),
     "madlad": Card("madlad", "MADLAD-400 3B full size — opt-in, needs ~8 GB free RAM",
                    "google/madlad400-3b-mt", 6500, "~12 GB", "Apache-2.0",
-                   "Loaded in bfloat16 (6.5 GB measured). Prefer madlad-int8 on 8 GB PCs."),
+                   "Loaded in bfloat16 (6.5 GB measured). Prefer madlad-int8 on 8 GB PCs.",
+                    revision="fa184c675da0b5c9e1c8694fccd4e12e2d422094"),
     "gemma": Card("gemma", "TranslateGemma 4B full size — gated, images",
                   "google/translategemma-4b-it", 9000, "~8.6 GB", "Gemma terms",
                   "Gated: accept the terms on Hugging Face and log in first. Needs ~16 GB RAM; "
-                  "use gemma-q4 on 8 GB PCs."),
+                  "use gemma-q4 on 8 GB PCs.",
+                    revision="10042cb0e6e7fdce748996a71dc3dc432a4e0c89"),
     "lid": Card("lid", "GlotLID — language identification, 1,600+ languages",
-                "cis-lmu/glotlid", 500, "?", "Apache-2.0", "Size not measured yet."),
+                "cis-lmu/glotlid", 500, "?", "Apache-2.0", "Size not measured yet.",
+                    revision="e9592e0a9bc3b6f2a946de94faaa188d1dd6f522"),
     "checker": Card("checker", "LaBSE — meaning checker, 109 languages",
-                    "sentence-transformers/LaBSE", 1000, "~1.9 GB", "Apache-2.0"),
+                    "sentence-transformers/LaBSE", 1000, "~1.9 GB", "Apache-2.0",
+                    revision="836121a0533e5664b21c7aacc5d22951f2b8b25b"),
     "whisper": Card("whisper", "Whisper small — speech to text, ~99 languages",
-                    "openai/whisper-small", 1000, "~1 GB", "MIT", "Reading audio files needs ffmpeg."),
+                    "openai/whisper-small", 1000, "~1 GB", "MIT", "Reading audio files needs ffmpeg.",
+                    revision="973afd24965f72e36ca33b3055d56a652f456b4d"),
 }
 
 OPUS_PREFIX = "opus:"
@@ -108,8 +121,10 @@ def install(card_id: str) -> str:
         raise RuntimeError(f"No Opus-MT model for {card_id}: {last}")
     if card_id == "gemma-q4":  # the repo also holds a 12B file; fetch only the 4B one
         from .backends import GemmaQ4Backend
-        return snapshot_download(GemmaQ4Backend.repo, allow_patterns=[GemmaQ4Backend.filename])
-    return snapshot_download(resolve(card_id).repo)
+        return snapshot_download(GemmaQ4Backend.repo, allow_patterns=[GemmaQ4Backend.filename],
+                                 revision=GemmaQ4Backend.revision)
+    card = resolve(card_id)
+    return snapshot_download(card.repo, revision=card.revision)
 
 
 def remove(card_id: str) -> int:
@@ -141,3 +156,11 @@ def ram_budget_mb() -> int:
 def offline() -> bool:
     """With GLYPHBRIDGE_OFFLINE=1 only installed cards are used and nothing is downloaded."""
     return os.environ.get("GLYPHBRIDGE_OFFLINE") == "1"
+
+
+def pinned(card_id: str, env_var: str) -> tuple:
+    """(repo, revision) for a card: the pinned default, or an override from env_var
+    (an override is the user's own choice, so it is not pinned)."""
+    override = os.environ.get(env_var)
+    card = CARDS[card_id]
+    return (override, None) if override else (card.repo, card.revision)
