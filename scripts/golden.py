@@ -2,6 +2,7 @@
 
     python scripts/golden.py tests/golden/v1/tr-en.tsv tests/golden/v1/en-tr.tsv --min-chrf 40
     python scripts/golden.py tests/golden/v1/la-en.tsv:0 --json golden.json
+    python scripts/golden.py tests/golden/v2/de-en.tsv:0 tests/golden/v2/zh-en.tsv:0
 
 Each file is named <src>-<tgt>.tsv and has the columns category, source, reference.
 The set is versioned by folder (v1 = golden-v1): never edit a released set in place,
