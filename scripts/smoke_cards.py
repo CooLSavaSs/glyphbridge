@@ -121,6 +121,20 @@ def test_gemma_q4():
     _ram("gemma-q4")
 
 
+def test_gemma():
+    """Full-size TranslateGemma (gated). Needs HF_TOKEN from an account that accepted the Gemma terms."""
+    import os as _os
+    _os.environ["GLYPHBRIDGE_ENABLE_GEMMA"] = "1"
+    from glyphbridge.backends import GemmaBackend
+    b = GemmaBackend()
+    t0 = time.time()
+    out = b.translate(["Bugün hava çok güzel, parka gidelim mi?"], "tr", "en")
+    check("gemma tr->en", "weather" in out[0][0].lower(), f"{out[0][0]!r} ({time.time()-t0:.0f}s incl. load)")
+    out = b.translate(["Gallia est omnis divisa in partes tres."], "la", "en")
+    print(f"INFO gemma la->en {out[0][0]!r}", flush=True)
+    _ram("gemma")
+
+
 def _ram(label):
     """Print current and peak RAM of this process. Run with --isolate so each card
     gets its own process and the numbers belong to that card alone."""
@@ -139,7 +153,7 @@ def _ram(label):
 
 
 TESTS = {"lid": test_lid, "checker": test_checker, "ocr": test_ocr, "pipeline": test_pipeline, "madlad": test_madlad, "speech": test_speech,
-         "madlad-int8": test_madlad_int8, "gemma-q4": test_gemma_q4}
+         "madlad-int8": test_madlad_int8, "gemma-q4": test_gemma_q4, "gemma": test_gemma}
 
 if __name__ == "__main__":
     args = sys.argv[1:]
