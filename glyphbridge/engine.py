@@ -11,7 +11,7 @@ For every sentence:
    result is returned with ``flagged=True`` (shown as a warning by the CLI).
 
 ``confidence`` is the checker's similarity when the checker is installed,
-otherwise the model's own token probability.
+otherwise the model's own token probability (None when the backend gives none).
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ class TranslationResult:
     translation: str
     source: str
     target: str
-    confidence: float
+    confidence: Optional[float]
     model: str
     flagged: bool = False
     similarity: Optional[float] = None
@@ -80,7 +80,7 @@ class Engine:
         for backend, src, tgt in route:
             out = backend.translate(current, src, tgt)
             current = [t for t, _ in out]
-            probs = [p * q for p, (_, q) in zip(probs, out)]
+            probs = [None if p is None or q is None else p * q for p, (_, q) in zip(probs, out)]
         label = " -> ".join(f"{b.name}:{s}-{t}" for b, s, t in route)
         return current, probs, label
 
@@ -117,9 +117,9 @@ class Engine:
                 ok = self.checker.passes(sim)
                 prev = best[i]
                 attempts = (prev.attempts if prev else []) + [label]
-                cand = TranslationResult(out, source, target, round(conf, 4), label,
+                cand = TranslationResult(out, source, target, None if conf is None else round(conf, 4), label,
                                          flagged=not ok, similarity=sim, attempts=attempts)
-                if prev is None or ok or cand.confidence > prev.confidence:
+                if prev is None or ok or (cand.confidence or 0) > (prev.confidence or 0):
                     best[i] = cand
                 else:
                     prev.attempts = attempts
