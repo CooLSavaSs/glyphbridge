@@ -28,6 +28,26 @@ Already have a translation in your language? Native-speaker corrections are just
 3. Describe **what** you changed and **why** in the pull request.
 4. Be kind and respectful in all discussions.
 
+## Adding a model card
+
+A *card* is one model Glyphbridge can load on demand. To add one:
+
+1. **Check the license first.** Code and weights must allow commercial use and redistribution
+   (Apache-2.0, MIT, BSD, CC-BY...). Non-commercial (CC-BY-NC), region-restricted or
+   copyleft (GPL/AGPL) models are not accepted as default cards.
+2. **Describe it** in `glyphbridge/cards.py`: id, title, Hugging Face repo, estimated RAM in MB,
+   disk size and license. Measure RAM if you can and say so (`"6.5 GB measured"`).
+3. **Implement a backend** in `glyphbridge/backends.py`: subclass `Backend`, set `name` and
+   `ram_mb`, implement `supports(source, target)` and `translate(texts, source, target)`
+   returning `(translation, probability or None)` pairs. Load the model inside a `loader`
+   passed to `self.cache.get(key, loader, ram_mb)` so the RAM budget can unload it, and raise
+   `BackendUnavailable` when it cannot load.
+4. **Register it** in `default_backends()` at the right place in the order (fast/small first).
+5. **Test it**: a unit test with a fake model in `tests/`, and a real-model check in
+   `scripts/smoke_cards.py` that runs in the *Cards (real models)* workflow.
+
+Cards must work on a CPU-only PC; a card that needs more than ~4 GB RAM should be opt-in.
+
 ## Reporting a translation error
 
 Open an issue with:
