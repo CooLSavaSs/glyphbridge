@@ -135,6 +135,36 @@ def test_gemma():
     _ram("gemma")
 
 
+def test_hymt2_q4():
+    import os as _os
+    _os.environ["GLYPHBRIDGE_ENABLE_HYMT"] = "1"
+    from glyphbridge.backends import HyMT2Q4Backend
+    b = HyMT2Q4Backend()
+    t0 = time.time()
+    out = b.translate(["Bugün hava çok güzel, parka gidelim mi?"], "tr", "en")
+    check("hymt2-q4 tr->en", "weather" in out[0][0].lower(), f"{out[0][0]!r} ({time.time()-t0:.0f}s incl. load)")
+    out = b.translate(["The weather is very nice today."], "en", "tr")
+    check("hymt2-q4 en->tr", "hava" in out[0][0].lower(), repr(out[0][0]))
+    _ram("hymt2-q4")
+
+
+def test_emotion():
+    import os as _os
+    _os.environ["GLYPHBRIDGE_EMOTION"] = "1"
+    from glyphbridge.emotion import Emotion
+    em = Emotion()
+    cases = [("Seni çok seviyorum, harika bir insansın!", "positive"),
+             ("Bu berbat bir gün, her şey kötü gitti.", "negative"),
+             ("I love this wonderful city.", "positive"),
+             ("This is the worst service I have ever had.", "negative")]
+    got = em.labels([t for t, _ in cases])
+    for (text, want), lab in zip(cases, got):
+        check("emotion", lab and lab[0] == want, f"{text!r} -> {lab}")
+    flip = em.flipped(got[0], em.labels(["I hate you, you are a terrible person."])[0])
+    check("emotion flip caught", bool(flip), repr(flip))
+    _ram("emotion")
+
+
 def _ram(label):
     """Print current and peak RAM of this process. Run with --isolate so each card
     gets its own process and the numbers belong to that card alone."""
@@ -153,7 +183,8 @@ def _ram(label):
 
 
 TESTS = {"lid": test_lid, "checker": test_checker, "ocr": test_ocr, "pipeline": test_pipeline, "madlad": test_madlad, "speech": test_speech,
-         "madlad-int8": test_madlad_int8, "gemma-q4": test_gemma_q4, "gemma": test_gemma}
+         "madlad-int8": test_madlad_int8, "gemma-q4": test_gemma_q4, "gemma": test_gemma,
+         "hymt2-q4": test_hymt2_q4, "emotion": test_emotion}
 
 if __name__ == "__main__":
     args = sys.argv[1:]
