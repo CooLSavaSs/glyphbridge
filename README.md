@@ -75,7 +75,23 @@ Glyphbridge builds on proven open models instead of starting from zero. A **rout
 
 RAM figures marked *measured* are the peak of a whole process (Python, libraries and the model) translating on CPU in CI; unmarked ones are estimates. A range means two CI runs gave different peaks; the router plans with the higher one. On an 8 GB PC the 8 GB cards fit, but leave little room for other programs.
 
-**Quality so far** (golden-v1, a small hand-made sanity set, not a benchmark): Opus-MT reaches chrF **75.6** for Turkish→English and **76.8** for English→Turkish. Names, numbers, negation and technical text score well; idioms are weak (chrF 22–28) and are the next thing to improve. For Latin, MADLAD gets the regression case *Gallia est omnis divisa in partes tres* wrong (chrF 38.7), while TranslateGemma 4-bit (`gemma-q4`) scores **84.9**, so Latin now goes to `gemma-q4` when it is installed. For Turkish, `gemma-q4` scored lower than Opus-MT (68.6 / 64.4), so Opus-MT stays first. Without `gemma-q4`, Latin goes to the Apache-licensed Opus-MT Italic group model (`opus-mt-itc-en`, chrF **61.1**). Numbers like these, not guesses, decide the router order. A larger set, **golden-v2** (230 sentences, 9 language pairs, now also German, French, Spanish, Russian, Arabic and Chinese into English), runs in CI in report-only mode; its first scores will be published here before any threshold is set.
+**Quality so far** (golden-v1, a small hand-made sanity set, not a benchmark): Opus-MT reaches chrF **75.6** for Turkish→English and **76.8** for English→Turkish. Names, numbers, negation and technical text score well; idioms are weak (chrF 22–28) and are the next thing to improve. For Latin, MADLAD gets the regression case *Gallia est omnis divisa in partes tres* wrong (chrF 38.7), while TranslateGemma 4-bit (`gemma-q4`) scores **84.9**, so Latin now goes to `gemma-q4` when it is installed. For Turkish, `gemma-q4` scored lower than Opus-MT (68.6 / 64.4), so Opus-MT stays first. Without `gemma-q4`, Latin goes to the Apache-licensed Opus-MT Italic group model (`opus-mt-itc-en`, chrF **61.1**). Numbers like these, not guesses, decide the router order.
+
+**golden-v2** (230 sentences, 9 pairs, report only; first run, CI #96). chrF per pair:
+
+| pair | Opus-MT (default) | Hy-MT2 4-bit | TranslateGemma 4-bit |
+|---|---|---|---|
+| tr→en (62) | **73.2** | 70.6 | 69.0 |
+| en→tr (45) | **76.8** | **76.8** | 68.7 |
+| de→en (15) | **85.6** | 80.1 | – |
+| fr→en (15) | **80.1** | 76.5 | – |
+| es→en (15) | 86.9 | **88.9** | – |
+| ru→en (15) | 74.8 | **80.8** | – |
+| ar→en (13) | **1.3 (broken)** | **90.5** | – |
+| zh→en (15) | 58.3 | **86.5** | – |
+| la→en (25) | 49.5 (opus-group) | – | **75.1** |
+
+What the larger set changed: on golden-v1 (18 sentences) Hy-MT2 beat Opus-MT for tr→en (79.6 vs 75.6); on 62 sentences Opus-MT is ahead (73.2 vs 70.6), so small sets mislead. Two real bugs surfaced: the default Opus-MT `ar-en` path returns unusable output (all 13 sentences flagged), and the name/number check raises false alarms on German (14 of 15 flagged, because German capitalises every noun). Idioms stay the weakest category for every model (chrF 11–42 for Opus-MT).
 
 Not used by default because their licenses forbid commercial use or exclude regions: NLLB-200 (CC-BY-NC), Cohere North Small Translate (CC-BY-NC). (Tencent Hy-MT2 used to be in this list; it is Apache 2.0 now and is the `hymt2-q4` card.)
 
