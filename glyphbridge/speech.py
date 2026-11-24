@@ -4,6 +4,8 @@
   Reading audio files needs the ``ffmpeg`` program.
 * Text-to-speech: the ``espeak-ng`` program (100+ languages, fully offline).
   Natural-sounding Piper voices are planned as cards.
+* Live mode: ``glyphbridge listen`` records the microphone in short chunks
+  (``sounddevice``) and prints each chunk's transcript and translation.
 """
 
 from __future__ import annotations
@@ -74,3 +76,41 @@ def _split_sentences(text: str) -> List[str]:
     if cur.strip():
         parts.append(cur)
     return parts
+
+
+def record_chunks(seconds: float = 5.0, samplerate: int = 16000):
+    """Yield WAV file paths, one per ``seconds`` of microphone audio, until interrupted."""
+    import tempfile
+    import wave
+    try:
+        import sounddevice as sd  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError("Live mode needs: pip install 'glyphbridge[mic]'") from exc
+    folder = tempfile.mkdtemp(prefix="glyphbridge-mic-")
+    n = 0
+    while True:
+        audio = sd.rec(int(seconds * samplerate), samplerate=samplerate, channels=1, dtype="int16")
+        sd.wait()
+        n += 1
+        path = os.path.join(folder, f"chunk{n:04d}.wav")
+        with wave.open(path, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(samplerate)
+            wf.writeframes(audio.tobytes())
+        yield path
+
+
+def listen(target: str, source: str = "auto", seconds: float = 5.0, chunks=None, emit=print) -> int:
+    """Live translation: transcribe and translate each audio chunk as it arrives.
+    Returns the number of chunks that contained speech."""
+    spoken = 0
+    for path in (chunks if chunks is not None else record_chunks(seconds)):
+        text = transcribe(path, source)
+        if not text.strip():
+            continue
+        spoken += 1
+        results = get_engine().translate_batch([text], target=target, source=source)
+        mark = "\u26a0 " if results[0].flagged else ""
+        emit(f"\U0001f399 {text}\n   \u2192 {mark}{results[0].translation}")
+    return spoken
