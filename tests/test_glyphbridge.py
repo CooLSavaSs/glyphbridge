@@ -444,3 +444,42 @@ def test_default_router_order_is_locked(monkeypatch):
     from glyphbridge.backends import ModelCache, default_backends, names
     monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
     assert names(default_backends(ModelCache(budget_mb=1))) == ["opus", "gemma-q4", "gemma", "madlad-int8", "madlad"]
+
+
+def test_madlad_int8_calls_ctranslate2_with_valid_arguments():
+    # Mirrors the keyword arguments ctranslate2.Translator.translate_batch accepts, so an
+    # unknown argument (like the old normalize_scores) fails here and not only in CI.
+    from glyphbridge.backends import MadladInt8Backend, ModelCache
+
+    class Hyp:
+        hypotheses = [["\u2581Hello"]]
+        scores = [-0.1]
+
+    class FakeTranslator:
+        def translate_batch(self, source, target_prefix=None, *, max_batch_size=0, beam_size=2,
+                            max_decoding_length=256, return_scores=False, length_penalty=1,
+                            num_hypotheses=1, max_input_length=1024):
+            return [Hyp() for _ in source]
+
+    class FakeSP:
+        def encode(self, text, out_type=str):
+            return text.split()
+
+        def decode(self, pieces):
+            return "".join(pieces).replace("\u2581", " ").strip()
+
+    b = MadladInt8Backend(ModelCache(budget_mb=100000))
+    b._load = lambda: (FakeTranslator(), FakeSP())
+    (text, p), = b.translate(["Merhaba"], "tr", "en")
+    assert text == "Hello" and 0 < p <= 1
+
+
+def test_consistency_accepts_exonyms_and_accents_but_catches_dropped_names():
+    from glyphbridge.checker import consistency
+    # False alarms seen in the golden-v1 CI run.
+    assert consistency("Ahmet'in kız kardeşi İstanbul'da yaşıyor.", "Ahmet's sister lives in Istanbul.") == []
+    assert consistency("Ankara, Türkiye'nin başkentidir.", "Ankara is the capital of Turkey.") == []
+    assert consistency("Please call me before Friday.", "Lütfen cumadan önce beni ara.") == []
+    # Real problems are still caught.
+    assert consistency("Elif yarın Londra'ya uçacak.", "Elif will fly to Paris tomorrow.") == ["name Londra missing"]
+    assert consistency("Yesterday Maria was in Berlin.", "Dün Anna Berlin'deydi.") == ["name Maria missing"]
