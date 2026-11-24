@@ -125,7 +125,7 @@ def _ram(label):
     """Print current and peak RAM of this process. Run with --isolate so each card
     gets its own process and the numbers belong to that card alone."""
     import resource
-    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6  # KiB on Linux -> GB
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024 / 1e9  # KiB on Linux -> GB
     try:
         import psutil
         now = psutil.Process().memory_info().rss / 1e9
