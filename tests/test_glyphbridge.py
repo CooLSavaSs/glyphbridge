@@ -288,7 +288,7 @@ def test_gemma_prompt_format():
 def test_small_cards_are_default_order(monkeypatch):
     from glyphbridge.backends import default_backends
     monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
-    assert [b.name for b in default_backends()] == ["opus", "gemma-q4", "gemma", "madlad-int8", "madlad"]
+    assert [b.name for b in default_backends()] == ["opus", "gemma-q4", "gemma", "opus-group", "madlad-int8", "madlad"]
 
 
 def test_rate_limit(eng):
@@ -443,7 +443,7 @@ def test_default_router_order_is_locked(monkeypatch):
     # Change it only together with benchmark numbers.
     from glyphbridge.backends import ModelCache, default_backends, names
     monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
-    assert names(default_backends(ModelCache(budget_mb=1))) == ["opus", "gemma-q4", "gemma", "madlad-int8", "madlad"]
+    assert names(default_backends(ModelCache(budget_mb=1))) == ["opus", "gemma-q4", "gemma", "opus-group", "madlad-int8", "madlad"]
 
 
 def test_madlad_int8_calls_ctranslate2_with_valid_arguments():
@@ -562,11 +562,9 @@ def test_cli_memory_option_sets_env(tmp_path, monkeypatch):
     assert os.environ["GLYPHBRIDGE_MEMORY"] == os.pathsep.join(["a.tsv", "b.tsv"])
 
 
-def test_opus_group_model_for_latin_is_opt_in(monkeypatch):
-    from glyphbridge.backends import ModelCache, OpusBackend
-    b = OpusBackend(ModelCache(budget_mb=100000))
-    monkeypatch.delenv("GLYPHBRIDGE_OPUS_GROUPS", raising=False)
-    assert "Helsinki-NLP/opus-mt-itc-en" not in b._names("la", "en")
-    monkeypatch.setenv("GLYPHBRIDGE_OPUS_GROUPS", "1")
-    assert b._names("la", "en")[-1] == "Helsinki-NLP/opus-mt-itc-en"
-    assert "Helsinki-NLP/opus-mt-itc-en" not in b._names("la", "de")
+def test_opus_group_model_serves_latin_to_english_only():
+    from glyphbridge.backends import ModelCache, OpusBackend, OpusGroupBackend
+    g = OpusGroupBackend(ModelCache(budget_mb=100000))
+    assert g._names("la", "en") == ["Helsinki-NLP/opus-mt-itc-en"]
+    assert g._names("la", "de") == [] and g._names("tr", "en") == []
+    assert "Helsinki-NLP/opus-mt-itc-en" not in OpusBackend(ModelCache(budget_mb=1))._names("la", "en")
