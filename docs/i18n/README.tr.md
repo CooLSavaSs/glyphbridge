@@ -20,7 +20,7 @@
 |---|---|---|
 | **v0.1** | Model yönlendiricili metin çevirisi (Opus-MT → TranslateGemma → MADLAD-400), anlam denetçisi, sadece gerekeni kuran model kartları, CLI, API anahtarlı REST API, MCP sunucusu | 🧪 Önizleme |
 | **v0.2** | **Belgeler**: DOCX yerinde çevrilir (başlık, liste, tablo korunur), PDF metni → metin, TXT/MD; **resimler** Tesseract OCR ile. Sırada: PDF düzeni, budanmış int8 kartlar | 🧪 Kısmen önizlemede |
-| **v0.3** | **Ses**: Whisper ile konuşma → metin → çeviri → espeak-ng ile ses (`--speak`). Sırada: doğal Piper sesleri, canlı mikrofon modu | 🧪 Önizleme |
+| **v0.3** | **Ses**: Whisper ile konuşma → metin → çeviri → espeak-ng ile ses (`--speak`). canlı mikrofon modu (`glyphbridge listen`). Sırada: doğal sesler | 🧪 Önizleme |
 | **v0.4** | **Osmanlıca**: matbu ve el yazısı (rika, divani) OCR, transliterasyon, modern Türkçe | 📋 Planlanan |
 | **Deneysel** | **Mısır hiyeroglifleri** ve **çivi yazısı** (Akadca, Sümerce) — araştırmacılarla iş birliği içinde | 🔬 Araştırma |
 
@@ -32,7 +32,7 @@
 | Komut satırı | `glyphbridge translate --file notlar.txt --to de` |
 | REST API | `glyphbridge serve` → `POST /v1/translate` (isteğe bağlı API anahtarı) |
 | Yapay zekâ ajanları (MCP) | Claude ve diğer yapay zekâ asistanlarından araç olarak kullanın |
-| OpenAI uyumlu uç nokta *(planlanan)* | Mevcut yapay zekâ araçlarına kod değiştirmeden bağlayın |
+| OpenAI uyumlu uç nokta | `base_url=http://localhost:8080/v1`, `model="glyphbridge-en"` — mevcut OpenAI istemcileri değişmeden çalışır |
 
 Her şey kendi sisteminizde çalışır ve ücretsizdir. API anahtarları, sunucunuzu ağa veya internete açtığınızda onu korur.
 
@@ -48,6 +48,7 @@ glyphbridge translate "Merhaba dünya" --from tr --to en
 glyphbridge translate --file rapor.docx --to en      # -> rapor.en.docx
 glyphbridge translate --file foto.jpg --from tr --to en  # OCR -> foto.en.txt
 glyphbridge translate --file konusma.mp3 --to en --speak  # ses -> metin + konusma.en.wav
+glyphbridge listen --from tr --to en                      # canlı mikrofon çevirisi
 glyphbridge serve --port 8080 --api-key "uzun-rastgele-bir-anahtar"
 ```
 
