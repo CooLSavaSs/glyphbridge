@@ -407,7 +407,9 @@ HYMT2_LANGS = ("zh en fr pt es ja tr ru ar ko th it de vi ms id tl hi pl cs nl k
 
 class HyMT2Q4Backend(Backend):
     """Tencent Hy-MT2 1.8B, official 4-bit GGUF (1.1 GB file, Apache 2.0), run with llama.cpp.
-    36 languages. Off until installed (``glyphbridge cards install hymt2-q4``)."""
+    36 languages. Off until installed (``glyphbridge cards install hymt2-q4``); once installed it
+    is tried first, because golden-v1 measured it best for Turkish<->English (chrF 79.6 / 77.9
+    against Opus-MT 75.6 / 76.8) at 2.2 GB peak RAM."""
 
     name = "hymt2-q4"
     ram_mb = CARDS["hymt2-q4"].ram_mb
@@ -471,10 +473,9 @@ class OpusGroupBackend(OpusBackend):
 
 def default_backends(cache: ModelCache = CACHE) -> List[Backend]:
     order = os.environ.get("GLYPHBRIDGE_BACKENDS",
-                           "opus,gemma-q4,gemma,opus-group,madlad-int8,madlad").split(",")
+                           "hymt2-q4,opus,gemma-q4,gemma,opus-group,madlad-int8,madlad").split(",")
     known = {"opus": OpusBackend, "gemma-q4": GemmaQ4Backend, "gemma": GemmaBackend,
              "opus-group": OpusGroupBackend, "madlad-int8": MadladInt8Backend, "madlad": MadladBackend,
-             # Not in the default order until golden-v1 says where it belongs.
              "hymt2-q4": HyMT2Q4Backend}
     return [known[n.strip()](cache) for n in order if n.strip() in known]
 
