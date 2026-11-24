@@ -505,3 +505,21 @@ def test_opus_offline_only_considers_installed_pairs(monkeypatch):
     assert b.supports("tr", "en") and tried == ["Helsinki-NLP/opus-mt-tr-en"]
     tried.clear()
     assert not b.supports("la", "en") and tried == []
+
+
+def test_consistency_findings_from_gemma_golden_run():
+    from glyphbridge.checker import consistency
+    # 24-hour vs 12-hour clock is the same time.
+    assert consistency("Toplantı saat 14:30'da başlayacak.", "The meeting will begin at 2:30 p.m.") == []
+    assert consistency("Toplantı saat 14:30'da.", "The meeting is at 3:30 p.m.") != []
+    # Month names are not names.
+    assert consistency("Sözleşme 15 Mart 2025'te sona eriyor.", "The contract expires on 15 March 2025.") == []
+    # A sentence written twice is caught.
+    out = consistency("Sözleşme 15 Mart 2025'te sona eriyor.",
+                      "The contract expires on 15 March 2025. The contract expires on 15 March 2025.")
+    assert out and out[0].startswith("repeated text")
+
+
+def test_gemma_routes_latin_by_default(monkeypatch):
+    from glyphbridge.backends import GEMMA_DEFAULT_LANGS
+    assert "la" in GEMMA_DEFAULT_LANGS
