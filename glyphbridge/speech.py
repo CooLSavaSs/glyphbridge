@@ -28,7 +28,8 @@ def _asr():
         from transformers import pipeline  # type: ignore
     except ImportError as exc:
         raise RuntimeError("Speech needs: pip install glyphbridge (transformers) and ffmpeg") from exc
-    return pipeline("automatic-speech-recognition", model=CARDS["whisper"].repo, device="cpu")
+    card = CARDS["whisper"]
+    return pipeline("automatic-speech-recognition", model=card.repo, revision=card.revision, device="cpu")
 
 
 def transcribe(path: str, source: str = "auto") -> str:
