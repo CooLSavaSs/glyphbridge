@@ -560,3 +560,13 @@ def test_cli_memory_option_sets_env(tmp_path, monkeypatch):
     parser.parse_args = lambda argv=None: args
     assert cli.main([]) == 0
     assert os.environ["GLYPHBRIDGE_MEMORY"] == os.pathsep.join(["a.tsv", "b.tsv"])
+
+
+def test_opus_group_model_for_latin_is_opt_in(monkeypatch):
+    from glyphbridge.backends import ModelCache, OpusBackend
+    b = OpusBackend(ModelCache(budget_mb=100000))
+    monkeypatch.delenv("GLYPHBRIDGE_OPUS_GROUPS", raising=False)
+    assert "Helsinki-NLP/opus-mt-itc-en" not in b._names("la", "en")
+    monkeypatch.setenv("GLYPHBRIDGE_OPUS_GROUPS", "1")
+    assert b._names("la", "en")[-1] == "Helsinki-NLP/opus-mt-itc-en"
+    assert "Helsinki-NLP/opus-mt-itc-en" not in b._names("la", "de")
