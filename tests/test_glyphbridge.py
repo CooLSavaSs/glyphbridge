@@ -523,3 +523,40 @@ def test_consistency_findings_from_gemma_golden_run():
 def test_gemma_routes_latin_by_default(monkeypatch):
     from glyphbridge.backends import GEMMA_DEFAULT_LANGS
     assert "la" in GEMMA_DEFAULT_LANGS
+
+
+def test_translation_memory_wins_before_models(tmp_path):
+    from glyphbridge.memory import Memory
+    mem = tmp_path / "idioms.tsv"
+    mem.write_text("# src\ttgt\tsource\ttranslation\n"
+                   "tr\ten\tGözden ırak olan gönülden de ırak olur.\tOut of sight, out of mind.\n",
+                   encoding="utf-8")
+    e = Engine(backends=[OPUS], checker=FakeChecker(), memory=Memory([str(mem)]))
+    r = e.translate_batch(["gözden ırak olan  gönülden de ırak olur", "Merhaba dünya"], target="en", source="tr")
+    assert r[0].translation == "Out of sight, out of mind." and r[0].model == "memory" and not r[0].flagged
+    assert r[1].translation == "Hello world" and r[1].model == "opus:tr-en"
+    # Other direction is not matched.
+    assert e.memory.get("Gözden ırak olan gönülden de ırak olur.", "tr", "de") is None
+
+
+def test_translation_memory_rejects_bad_rows(tmp_path):
+    from glyphbridge.memory import Memory
+    bad = tmp_path / "bad.tsv"
+    bad.write_text("tr\ten\tonly three columns\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="bad.tsv:1"):
+        Memory([str(bad)])
+
+
+def test_cli_memory_option_sets_env(tmp_path, monkeypatch):
+    from glyphbridge import cli
+    import os
+    monkeypatch.delenv("GLYPHBRIDGE_MEMORY", raising=False)
+    monkeypatch.setattr(cli, "cmd_translate", lambda args: 0, raising=False)
+    parser = cli.build_parser()
+    args = parser.parse_args(["translate", "x", "--to", "en", "--memory", "a.tsv", "--memory", "b.tsv"])
+    assert args.memory == ["a.tsv", "b.tsv"]
+    monkeypatch.setattr(cli, "build_parser", lambda: parser)
+    args.func = lambda a: 0
+    parser.parse_args = lambda argv=None: args
+    assert cli.main([]) == 0
+    assert os.environ["GLYPHBRIDGE_MEMORY"] == os.pathsep.join(["a.tsv", "b.tsv"])
