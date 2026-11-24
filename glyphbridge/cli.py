@@ -5,6 +5,7 @@
     glyphbridge translate --file report.docx --to en        # -> report.en.docx
     glyphbridge translate --file photo.jpg --from tr --to en  # OCR, -> photo.en.txt
     glyphbridge translate --file talk.mp3 --to en --speak     # speech -> talk.en.txt + talk.en.wav
+    glyphbridge listen --from tr --to en                      # live microphone translation
     echo "Hola" | glyphbridge translate --to en --json
     glyphbridge serve --port 8080 --api-key "$GLYPHBRIDGE_API_KEY"
     glyphbridge mcp
@@ -148,6 +149,19 @@ def _cmd_cards(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_listen(args: argparse.Namespace) -> int:
+    from .speech import listen
+    print(f"Listening ({args.seconds:g}s chunks) - press Ctrl+C to stop.", file=sys.stderr)
+    try:
+        listen(target=args.to, source=args.source, seconds=args.seconds)
+    except KeyboardInterrupt:
+        pass
+    except (RuntimeError, TranslationError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def _cmd_languages(_: argparse.Namespace) -> int:
     for code, name in SUPPORTED_LANGUAGES.items():
         print(f"{code}\t{name}")
@@ -178,6 +192,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     m = sub.add_parser("mcp", help="Run the MCP server for AI assistants (stdio)")
     m.set_defaults(func=_cmd_mcp)
+
+    li = sub.add_parser("listen", help="Live translation from the microphone")
+    li.add_argument("--from", dest="source", default="auto", help="Spoken language (default: auto)")
+    li.add_argument("--to", "-t", required=True, help="Target language code")
+    li.add_argument("--seconds", type=float, default=5.0, help="Length of each recorded chunk")
+    li.set_defaults(func=_cmd_listen)
 
     c = sub.add_parser("cards", help="List, install or remove model cards")
     c.add_argument("action", nargs="?", choices=["list", "install", "remove"])
