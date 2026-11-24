@@ -242,3 +242,31 @@ def test_audio_translation(eng, tmp_path, monkeypatch, capsys):
 def test_sentence_split():
     from glyphbridge.speech import _split_sentences
     assert _split_sentences("Bir. İki? Üç") == ["Bir.", " İki?", " Üç"]
+
+
+def test_listen_translates_each_chunk(eng, monkeypatch):
+    from glyphbridge import speech
+    heard = {"a.wav": "Merhaba dünya", "b.wav": "", "c.wav": "Nasılsın?"}
+    monkeypatch.setattr(speech, "transcribe", lambda path, source="auto": heard[path])
+    lines = []
+    n = speech.listen(target="en", source="tr", chunks=["a.wav", "b.wav", "c.wav"], emit=lines.append)
+    assert n == 2
+    assert "Hello world" in lines[0] and "How are you?" in lines[1]
+
+
+def test_openai_compatible_endpoint(eng):
+    client = TestClient(create_app(engine=eng, api_key="k"))
+    h = {"Authorization": "Bearer k"}
+    models = client.get("/v1/models", headers=h).json()["data"]
+    assert {"id": "glyphbridge-en", "object": "model", "owned_by": "glyphbridge"} in models
+    body = {"model": "glyphbridge-en", "source": "tr",
+            "messages": [{"role": "system", "content": "translate"},
+                         {"role": "user", "content": [{"type": "text", "text": "Merhaba dünya"}]}]}
+    res = client.post("/v1/chat/completions", json=body, headers=h)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["object"] == "chat.completion"
+    assert data["choices"][0]["message"] == {"role": "assistant", "content": "Hello world"}
+    assert client.post("/v1/chat/completions", json=body).status_code == 401
+    bad = dict(body, model="gpt-4o")
+    assert client.post("/v1/chat/completions", json=bad, headers=h).status_code == 400
