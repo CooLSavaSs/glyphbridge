@@ -62,7 +62,7 @@ jobs:
           pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
           pip install -e ".[small]"
       - name: Run 8 GB card checks
-        run: python scripts/smoke_cards.py madlad-int8 gemma-q4
+        run: python scripts/smoke_cards.py --isolate madlad-int8 gemma-q4
       - name: Verify SHA-256 of the 8 GB cards
         run: |
           glyphbridge cards verify madlad-int8
