@@ -60,7 +60,7 @@ CARDS: Dict[str, Card] = {
                    "Loaded in bfloat16 (6.5 GB measured). Prefer madlad-int8 on 8 GB PCs.",
                     revision="fa184c675da0b5c9e1c8694fccd4e12e2d422094"),
     "gemma": Card("gemma", "TranslateGemma 4B full size — gated, images",
-                  "google/translategemma-4b-it", 9000, "~8.6 GB", "Gemma terms",
+                  "google/translategemma-4b-it", 9400, "~8.6 GB", "Gemma terms",
                   "Gated: accept the terms on Hugging Face and log in first. Needs ~16 GB RAM; "
                   "use gemma-q4 on 8 GB PCs.",
                     revision="10042cb0e6e7fdce748996a71dc3dc432a4e0c89"),
