@@ -4,14 +4,14 @@
 
 🌐 [English](../../README.md) · **Türkçe** · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Português](README.pt.md) · [Русский](README.ru.md) · [العربية](README.ar.md) · [हिन्दी](README.hi.md) · [中文](README.zh.md) · [日本語](README.ja.md)
 
-> ⚠️ **Durum: erken geliştirme aşamasında.** Glyphbridge herkese açık olarak geliştiriliyor. *Planlanan* olarak işaretli özellikler henüz yok — onları birlikte yapmak için yardımınızı bekliyoruz.
+> ⚠️ **Durum: erken önizleme (0.1.0.dev0).** Metin, DOCX, resim (OCR) ve ses çevirisi çalışıyor ve CI'da gerçek modellerle test ediliyor; ancak hiçbir şey üretime hazır değil ve kalite henüz ölçülmedi. *Planlanan* ya da *araştırma* olarak işaretli özellikler henüz yok — onları birlikte yapmak için yardımınızı bekliyoruz.
 
 ## Neden Glyphbridge?
 
 - **Sonsuza dek ücretsiz** — Apache 2.0 lisanslı açık kaynak, kayıt gerekmez; API anahtarı yalnızca kendi sunucunuzu ağa açarsanız kullanılır.
 - **Gizli ve çevrimdışı** — her şey kendi bilgisayarınızda çalışır, belgeleriniz dışarı çıkmaz.
 - **Hafif** — **8 GB RAM**'li sıradan bir bilgisayarda, ekran kartı olmadan verimli çalışacak şekilde tasarlanıyor.
-- **Kalite konusunda dürüst** — her çeviri bir **güven puanıyla** gelir; tek bir reklam rakamı yerine her dil çifti için ölçülmüş kaliteyi (COMET / chrF) yayınlarız.
+- **Kalite konusunda dürüst** — her çeviri bir **güven puanıyla** gelir; amacımız tek bir reklam rakamı yerine her dil çifti için ölçülmüş kaliteyi (chrF / COMET) yayınlamak ([yardım bekleniyor](https://github.com/CooLSavaSs/glyphbridge/issues)).
 - **Her yazı için** — düz metnin yanında fotoğraflardaki yazılar, belgeler, konuşma ve tarihî yazı sistemleri.
 
 ## Özellikler ve yol haritası
@@ -38,7 +38,7 @@ Her şey kendi sisteminizde çalışır ve ücretsizdir. API anahtarları, sunuc
 
 ## Başlarken
 
-> v0.1 bir **önizleme**: metin çevirisi çalışıyor; resim, belge, ses ve tarihî yazılar sonraki sürümlerde gelecek.
+> Bu bir **önizleme**: metin, belgeler (DOCX, PDF metni), resimler (OCR) ve ses çalışıyor; PDF düzeni, doğal sesler ve tarihî yazılar henüz hazır değil. Kalite henüz ölçülmedi.
 
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -61,8 +61,10 @@ Glyphbridge kendini kanıtlamış açık modelleri kullanır. Bir **yönlendiric
 | Görev | Model (kart) | Diller | Lisans | RAM (tahmini) |
 |---|---|---|---|---|
 | Hızlı yol | Opus-MT / tc-big (`opus:<kaynak>-<hedef>`) | kart başına bir dil çifti | CC-BY 4.0 | ~600 MB |
-| En yüksek kalite *(isteğe bağlı)* | TranslateGemma 4B (`gemma`) | ~55 değerlendirilmiş, resim de okur | Gemma şartları | şimdilik ~9 GB, 4-bit kart planlanıyor |
-| Nadir diller | MADLAD-400 3B (`madlad`) | 400+ (Latince, Süryanice…) | Apache 2.0 | şimdilik ~6,5 GB, int8 kart planlanıyor |
+| En yüksek kalite, **8 GB PC** *(isteğe bağlı)* | TranslateGemma 4B 4-bit GGUF (`gemma-q4`) | ~55 değerlendirilmiş | Gemma şartları | ~3,5 GB (tahmini) |
+| Nadir diller, **8 GB PC** | MADLAD-400 3B int8 CTranslate2 (`madlad-int8`) | 400+ | Apache 2.0 | ~3,5 GB (tahmini) |
+| En yüksek kalite, tam boy *(isteğe bağlı)* | TranslateGemma 4B (`gemma`) | ~55 değerlendirilmiş, resim de okur | Gemma şartları | ~9 GB (tahmini) |
+| Nadir diller, tam boy *(isteğe bağlı)* | MADLAD-400 3B (`madlad`) | 400+ (Latince, Süryanice…) | Apache 2.0 | **6,5 GB ölçüldü** |
 | Dil tanıma | GlotLID (`lid`) | 1.600+ | Apache 2.0 | küçük |
 | Anlam denetçisi | LaBSE (`checker`) | 109 | Apache 2.0 | ~1 GB |
 
@@ -82,7 +84,8 @@ Amaç, büyük bir modelin bilgisini, tamamını çalıştırmadan kullanmak:
 
 | Adım | Yöntem | Etkisi |
 |---|---|---|
-| v0.2 | **Sözlüğü budanmış + int8 kartlar**: `tr-en` kartı yalnızca bu iki dilin kelimelerini tutar | çok daha az RAM ve disk, kalite neredeyse aynı |
+| v0.2 ✓ | **int8 / 4-bit kartlar** (`madlad-int8`, `gemma-q4`): büyük modellerin topluluk tarafından küçültülmüş sürümleri | yaklaşık yarı RAM |
+| sırada | **Sözlüğü budanmış kartlar**: `tr-en` kartı yalnızca bu iki dilin kelimelerini tutar | daha da az RAM ve disk |
 | v0.3 | **Taban + adaptör kartları**: küçük ortak model bellekte kalır, dil/görev başına 10–50 MB'lık LoRA adaptörleri takılıp çıkarılır | dil değiştirmek neredeyse hiç RAM harcamaz |
 | v0.3 | **Damıtılmış kartlar**: büyük model, dil çiftine özel küçük modeli eğitir | MB başına en iyi kalite |
 | sonra | **`--low-ram` modu**: katmanlar diskten tek tek okunur | çok büyük modeller küçük PC'de çalışır, ama yavaş |
