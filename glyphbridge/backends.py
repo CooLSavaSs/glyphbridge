@@ -120,10 +120,20 @@ class OpusBackend(Backend):
                 raise BackendUnavailable(str(exc)) from exc
         return self.cache.get(name, loader, OPUS_RAM_MB)
 
+    # Languages without a direct pair model, read by a multi-language group model.
+    # Group models into English need no language tag on the source side.
+    groups = {"la": "itc"}
+
+    def _names(self, source: str, target: str):
+        names = [tpl.format(src=source, tgt=target) for tpl in self.templates]
+        # Off by default until golden-v1 shows the group model beats the alternatives.
+        if source in self.groups and target == "en" and os.environ.get("GLYPHBRIDGE_OPUS_GROUPS") == "1":
+            names.append(f"Helsinki-NLP/opus-mt-{self.groups[source]}-en")
+        return names
+
     def _model_for(self, source: str, target: str):
         cached = _cached_repos() if offline() else None
-        for tpl in self.templates:
-            name = tpl.format(src=source, tgt=target)
+        for name in self._names(source, target):
             if cached is not None and name not in cached:
                 continue  # offline: only installed pair cards
             loaded = self._load_named(name)
