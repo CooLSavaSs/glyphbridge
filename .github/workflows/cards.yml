@@ -52,6 +52,34 @@ jobs:
       - name: Run MADLAD check
         run: python scripts/smoke_cards.py madlad
 
+  gemma-full:
+    name: TranslateGemma 4B full size (gated, needs the HF_TOKEN secret)
+    runs-on: ubuntu-latest
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    steps:
+      - name: Skip without a token
+        id: token
+        run: |
+          if [ -z "$HF_TOKEN" ]; then echo "No HF_TOKEN secret: skipping."; echo "run=no" >> "$GITHUB_OUTPUT"; else echo "run=yes" >> "$GITHUB_OUTPUT"; fi
+      - name: Free disk space for the 8.6 GB model
+        if: steps.token.outputs.run == 'yes'
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL && df -h /
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.run == 'yes'
+      - uses: actions/setup-python@v5
+        if: steps.token.outputs.run == 'yes'
+        with:
+          python-version: "3.12"
+      - name: Install
+        if: steps.token.outputs.run == 'yes'
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e . pillow
+      - name: Run full TranslateGemma check
+        if: steps.token.outputs.run == 'yes'
+        run: python scripts/smoke_cards.py gemma
+
   small-8gb:
     name: 8 GB cards (MADLAD int8, TranslateGemma 4-bit)
     runs-on: ubuntu-latest
