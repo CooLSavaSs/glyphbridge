@@ -635,3 +635,31 @@ def test_hymt2_card_is_pinned_and_off_by_default(monkeypatch):
     monkeypatch.setenv("GLYPHBRIDGE_ENABLE_HYMT", "1")
     assert b.supports("tr", "en") and not b.supports("la", "en")
     assert "into Turkish" in b.prompt("Hello", "tr")
+
+
+def test_golden_sets_are_well_formed_and_v2_keeps_v1():
+    # A released set must never change: golden-v2 starts with every golden-v1 row, unchanged.
+    import pathlib
+    root = pathlib.Path(__file__).parent / "golden"
+    known = {"general", "questions", "names", "numbers", "dates", "negation", "idioms",
+             "technical", "medical", "formal", "morphology", "long", "low-resource"}
+
+    def rows(path):
+        out = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip() and not line.startswith("#"):
+                parts = line.split("\t")
+                assert len(parts) == 3, (path.name, line)
+                assert parts[0] in known, (path.name, parts[0])
+                assert parts[1].strip() and parts[2].strip(), (path.name, line)
+                out.append(tuple(parts))
+        return out
+
+    for version in ("v1", "v2"):
+        for path in sorted((root / version).glob("*.tsv")):
+            r = rows(path)
+            assert len({s for _, s, _ in r}) == len(r), f"duplicate source in {version}/{path.name}"
+    for path in sorted((root / "v1").glob("*.tsv")):
+        old, new = rows(path), rows(root / "v2" / path.name)
+        assert new[:len(old)] == old, f"v2/{path.name} must start with the v1 rows"
+    assert sum(len(rows(p)) for p in (root / "v2").glob("*.tsv")) >= 200
