@@ -187,3 +187,40 @@ def test_cli_json(eng, capsys):
 def test_cli_serve_refuses_public_without_key(monkeypatch):
     monkeypatch.delenv("GLYPHBRIDGE_API_KEY", raising=False)
     assert cli.main(["serve", "--host", "0.0.0.0"]) == 2
+
+
+def test_docx_translation_keeps_structure(eng, tmp_path):
+    docx = pytest.importorskip("docx")
+    from glyphbridge.documents import translate_file
+    src = tmp_path / "in.docx"
+    d = docx.Document()
+    d.add_heading("Merhaba dünya", level=1)
+    d.add_paragraph("")
+    table = d.add_table(rows=1, cols=1)
+    table.cell(0, 0).text = "Nasılsın?"
+    d.save(src)
+    out, results = translate_file(str(src), target="en", source="tr")
+    assert out.endswith("in.en.docx") and len(results) == 2
+    back = docx.Document(out)
+    assert back.paragraphs[0].text == "Hello world"
+    assert back.paragraphs[0].style.name.startswith("Heading")
+    assert back.tables[0].cell(0, 0).text == "How are you?"
+
+
+def test_text_file_with_output(eng, tmp_path, capsys):
+    src = tmp_path / "a.txt"
+    src.write_text("Merhaba dünya\n\nNasılsın?", encoding="utf-8")
+    dst = tmp_path / "b.txt"
+    assert cli.main(["translate", "--file", str(src), "--from", "tr", "--to", "en", "-o", str(dst)]) == 0
+    assert dst.read_text(encoding="utf-8") == "Hello world\n\nHow are you?"
+    assert "2 segments" in capsys.readouterr().out
+
+
+def test_image_ocr_path(eng, tmp_path, monkeypatch):
+    from glyphbridge import documents
+    monkeypatch.setattr(documents, "ocr_image", lambda path, source="auto": "Merhaba dünya\n")
+    img = tmp_path / "photo.png"
+    img.write_bytes(b"")
+    out, results = documents.translate_file(str(img), target="en", source="tr")
+    assert out.endswith("photo.en.txt")
+    assert open(out, encoding="utf-8").read().startswith("Hello world")
