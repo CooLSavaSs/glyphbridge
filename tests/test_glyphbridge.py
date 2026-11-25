@@ -847,3 +847,13 @@ def test_flores_reader_reads_aligned_lines_without_extracting(tmp_path):
         assert flores.read(tar, "tur_Latn", 2) == ["Bir.", "İki."]
         assert flores.read(tar, "eng_Latn", 2) == ["One.", "Two."]
     assert all(len(v) in (2, 3) for v in flores.LANGS.values()) and len(flores.LANGS) == 50
+
+
+def test_target_language_answers_in_many_languages():
+    from glyphbridge.engine import parse_language as p
+    for answer, code in [("Almanca", "de"), ("Deutsch", "de"), ("Español", "es"), ("русский", "ru"),
+                         ("العربية", "ar"), ("日本語", "ja"), ("Kiswahili", "sw"), ("Yorùbá", "yo"),
+                         ("Süryanice", "syr"), ("fa", "fa"), ("sw", "sw"), (" Bahasa  Indonesia. ", "id")]:
+        assert p(answer) == code, answer
+    for not_a_language in ["hi", "no", "ok", "How are you?", "xyz", "Merhaba"]:
+        assert p(not_a_language) is None, not_a_language

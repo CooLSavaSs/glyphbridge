@@ -277,13 +277,19 @@ def ask_target(text: str, engine: Optional["Engine"] = None) -> dict:
 
 def parse_language(answer: str) -> Optional[str]:
     """'de', 'German' -> 'de'. None if the answer is not a known language."""
-    a = answer.strip().strip(".!?").lower()
+    a = " ".join(answer.strip().strip(".!?。").lower().split())
+    if a in _CODE_WORDS:
+        return None  # "hi", "no"... are replies, not languages; type "Hindi" / "Norwegian"
     if a in SUPPORTED_LANGUAGES:
         return a
     for code, name in SUPPORTED_LANGUAGES.items():
         if a == name.lower():
             return code
-    return LANGUAGE_WORDS.get(a)
+    if a in LANGUAGE_WORDS:
+        return LANGUAGE_WORDS[a]
+    if 2 <= len(a) <= 3 and a.isascii() and a.isalpha() and a not in _CODE_WORDS and a in _known_codes():
+        return a
+    return None
 
 
 # Language names people type when asked, beyond the English names above (Turkish first).
@@ -292,7 +298,36 @@ LANGUAGE_WORDS = {
     "italyanca": "it", "portekizce": "pt", "rusça": "ru", "arapça": "ar", "çince": "zh",
     "japonca": "ja", "korece": "ko", "hintçe": "hi", "hollandaca": "nl", "lehçe": "pl",
     "latince": "la", "farsça": "fa", "persian": "fa", "latin": "la", "yunanca": "el", "greek": "el",
+    "svahili": "sw", "swahili": "sw", "kiswahili": "sw", "urduca": "ur", "urdu": "ur",
+    "ibranice": "he", "hebrew": "he", "vietnamca": "vi", "vietnamese": "vi", "endonezce": "id",
+    "indonesian": "id", "bengalce": "bn", "bengali": "bn", "tayca": "th", "thai": "th",
+    "ukraynaca": "uk", "ukrainian": "uk", "kazakça": "kk", "kazakh": "kk", "özbekçe": "uz", "uzbek": "uz",
+    "azerice": "az", "azerbaijani": "az", "azerbaycan türkçesi": "az", "kürtçe": "ku", "kurdish": "ku",
+    "uygurca": "ug", "uyghur": "ug", "moğolca": "mn", "mongolian": "mn", "tibetçe": "bo", "tibetan": "bo",
+    "yoruba": "yo", "hausa": "ha", "amharca": "am", "amharic": "am", "somalice": "so", "somali": "so",
+    "zuluca": "zu", "zulu": "zu", "keçuva": "qu", "quechua": "qu", "guarani": "gn", "baskça": "eu",
+    "basque": "eu", "galce": "cy", "welsh": "cy", "maltaca": "mt", "maltese": "mt", "süryanice": "syr",
+    "syriac": "syr", "osmanlıca": "ota", "ottoman turkish": "ota",
+    # Endonyms: the language's own name for itself.
+    "english": "en", "deutsch": "de", "français": "fr", "francais": "fr", "español": "es", "espanol": "es",
+    "italiano": "it", "português": "pt", "portugues": "pt", "русский": "ru", "العربية": "ar",
+    "中文": "zh", "汉语": "zh", "日本語": "ja", "한국어": "ko", "हिन्दी": "hi", "nederlands": "nl",
+    "polski": "pl", "فارسی": "fa", "ελληνικά": "el", "עברית": "he", "tiếng việt": "vi",
+    "bahasa indonesia": "id", "বাংলা": "bn", "ไทย": "th", "українська": "uk", "қазақша": "kk",
+    "oʻzbekcha": "uz", "o'zbekcha": "uz", "azərbaycanca": "az", "kurdî": "ku", "ئۇيغۇرچە": "ug",
+    "монгол": "mn", "བོད་སྐད": "bo", "èdè yorùbá": "yo", "yorùbá": "yo", "አማርኛ": "am", "soomaali": "so",
+    "isizulu": "zu", "runasimi": "qu", "avañeʼẽ": "gn", "euskara": "eu", "cymraeg": "cy", "malti": "mt",
+    "ܣܘܪܝܝܐ": "syr", "اردو": "ur",
 }
+
+# Two- and three-letter codes are accepted as an answer too, except those that are also
+# everyday words ("hi", "no", "so"...), which would turn a reply into a language by accident.
+_CODE_WORDS = set("hi no so to am be is it me my he we an as at by do go if in of on or up us ok".split())
+
+
+def _known_codes() -> set:
+    from .backends import GEMMA_DEFAULT_LANGS, HYMT2_LANGS
+    return set(SUPPORTED_LANGUAGES) | set(GEMMA_DEFAULT_LANGS) | set(HYMT2_LANGS) | set(LANGUAGE_WORDS.values())
 
 
 def get_engine() -> Engine:

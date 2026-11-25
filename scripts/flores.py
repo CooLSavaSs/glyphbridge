@@ -47,7 +47,9 @@ def archive() -> str:
 
 
 def read(tar: tarfile.TarFile, code: str, n: int):
-    member = f"flores200_dataset/devtest/{code}.devtest"
+    name = f"flores200_dataset/devtest/{code}.devtest"
+    names = set(tar.getnames())
+    member = name if name in names else "./" + name  # the official archive uses "./" paths
     with tar.extractfile(member) as fh:  # read as text only, never extracted to disk
         return [fh.readline().decode("utf-8").rstrip("\n") for _ in range(n)]
 
