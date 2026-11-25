@@ -432,7 +432,7 @@ class GemmaQ4Backend(Backend):
                 raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
             path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
                                 self.filename)
-            return Llama(model_path=path, n_ctx=2048, n_threads=os.cpu_count() or 2, verbose=False)
+            return _llama(Llama, path)
         return self.cache.get(self.repo, loader, CARDS["gemma-q4"].ram_mb)
 
     def supports(self, source: str, target: str) -> bool:
@@ -449,6 +449,18 @@ class GemmaQ4Backend(Backend):
             # llama.cpp gives no cheap sequence probability here; the checker card scores it.
             out.append((res["choices"][0]["text"].strip(), None))
         return out
+
+
+def _llama(Llama, path: str):
+    """Open a GGUF card with llama.cpp. On CPUs the installed llama.cpp build does not
+    support (Windows error 0xc000001d, illegal instruction) the card is skipped instead of
+    taking the whole translation down; the other cards still work."""
+    try:
+        return Llama(model_path=path, n_ctx=2048, n_threads=os.cpu_count() or 2, verbose=False)
+    except OSError as exc:
+        raise BackendUnavailable(
+            f"llama.cpp cannot run on this CPU ({exc}); the GGUF cards are skipped. "
+            "Fix: build llama-cpp-python for this CPU, see README 'Older CPUs'.") from exc
 
 
 # Languages Hy-MT2 was trained on (model card of tencent/Hy-MT2-1.8B).
@@ -481,7 +493,7 @@ class HyMT2Q4Backend(Backend):
                 raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
             path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
                                 self.filename)
-            return Llama(model_path=path, n_ctx=2048, n_threads=os.cpu_count() or 2, verbose=False)
+            return _llama(Llama, path)
         return self.cache.get(self.repo, loader, self.ram_mb)
 
     def supports(self, source: str, target: str) -> bool:

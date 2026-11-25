@@ -103,6 +103,10 @@ What the larger set changed: on golden-v1 (18 sentences) Hy-MT2 beat Opus-MT for
 
 **Low-RAM mode works** (`GLYPHBRIDGE_LOW_RAM=1`, `pip install "glyphbridge[lowram]"`): the 9.4 GB full TranslateGemma ran under a hard **6 GB** memory cap with no swap, streaming the layers that did not fit from disk. Peak RAM 3.4 GB, both test sentences translated correctly, 44 s including loading (CI #103). Slower, but a model larger than the PC's RAM runs.
 
+**Tested on a real 8 GB laptop** (Windows 10, a 2015-era Intel Core i5, 4 threads, no GPU, 1.6 GB RAM free at the start): Opus-MT tr→en translates in ~3 s per sentence after the first download, at 0.93 GB RAM. Two Windows problems found and fixed: the console crashed on ✓/⚠ (now printed as `?` where the console cannot show them), and a GGUF card that llama.cpp cannot run crashed the whole translation (now that card is skipped and the next one translates).
+
+**Older CPUs:** the prebuilt `llama-cpp-python` CPU wheel stops with *illegal instruction* (Windows error `0xc000001d`) on that 2015-era Core i5, so the GGUF cards (`hymt2-q4`, `gemma-q4`) are skipped there and Opus-MT / MADLAD translate. To use them on such a CPU, build llama.cpp for it: install the Visual Studio Build Tools (C++), then `set CMAKE_ARGS=-DGGML_NATIVE=ON` and `pip install llama-cpp-python --no-binary llama-cpp-python`.
+
 **Built-in idiom memory** (`GLYPHBRIDGE_IDIOMS=1`): 40 common Turkish↔English proverbs and idioms (folk sayings, both directions), used before any model; your own memory files override them.
 
 Not used by default because their licenses forbid commercial use or exclude regions: NLLB-200 (CC-BY-NC), Cohere North Small Translate (CC-BY-NC). (Tencent Hy-MT2 used to be in this list; it is Apache 2.0 now and is the `hymt2-q4` card.)

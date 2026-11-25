@@ -250,7 +250,18 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _safe_console() -> None:
+    """Windows consoles often use a code page (cp1252, cp857...) that cannot show ✓ or ⚠ or
+    every script we translate. Print what they cannot show as '?' instead of crashing."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: Optional[List[str]] = None) -> int:
+    _safe_console()
     args = build_parser().parse_args(argv)
     if getattr(args, "memory", None):
         existing = [p for p in os.environ.get("GLYPHBRIDGE_MEMORY", "").split(os.pathsep) if p]

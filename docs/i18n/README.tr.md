@@ -102,6 +102,10 @@ Büyük setin değiştirdiği: golden-v1'de (18 cümle) Hy-MT2 tr→en'de Opus-M
 
 **Düşük RAM modu çalışıyor** (`GLYPHBRIDGE_LOW_RAM=1`, `pip install "glyphbridge[lowram]"`): 9,4 GB'lık tam boy TranslateGemma, takas alanı olmadan katı **6 GB** bellek sınırında çalıştı; sığmayan katmanlar diskten okundu. En yüksek RAM 3,4 GB, iki test cümlesi de doğru çevrildi, yükleme dahil 44 sn (CI #103). Daha yavaş, ama bilgisayarın RAM'inden büyük bir model çalışıyor.
 
+**Gerçek bir 8 GB dizüstünde denendi** (Windows 10, 2015 dönemi bir Intel Core i5, 4 iş parçacığı, ekran kartı yok, başlangıçta 1,6 GB boş RAM): Opus-MT tr→en ilk indirmeden sonra cümle başına ~3 sn, 0,93 GB RAM. İki Windows sorunu bulunup düzeltildi: konsol ✓/⚠ işaretlerinde çöküyordu (artık gösteremediği yerde `?` yazıyor) ve llama.cpp'nin çalıştıramadığı bir GGUF kartı bütün çeviriyi çökertiyordu (artık o kart atlanıyor, sıradaki kart çeviriyor).
+
+**Eski işlemciler:** hazır `llama-cpp-python` CPU paketi bu 2015 dönemi Core i5'te *geçersiz komut* hatasıyla duruyor (Windows hatası `0xc000001d`); bu yüzden orada GGUF kartları (`hymt2-q4`, `gemma-q4`) atlanıyor, Opus-MT / MADLAD çeviriyor. Bu kartları böyle bir işlemcide kullanmak için llama.cpp'yi o işlemciye göre derleyin: Visual Studio Build Tools (C++) kurun, sonra `set CMAKE_ARGS=-DGGML_NATIVE=ON` ve `pip install llama-cpp-python --no-binary llama-cpp-python`.
+
 **Yerleşik deyim belleği** (`GLYPHBRIDGE_IDIOMS=1`): 40 yaygın Türkçe↔İngilizce atasözü ve deyim (halk sözleri, iki yönde), her modelden önce kullanılır; kendi bellek dosyalarınız bunların önüne geçer.
 
 **Hy-MT2** (Tencent; Hugging Face'te en çok beğenilen çeviri modeli) Türkçe↔İngilizce için şimdiye kadar ölçülen en iyi kart: chrF **79,6** / **77,9** (Opus-MT 75,6 / 76,8), deyimlerde 46,8 (Opus-MT 28,4), tepe RAM 2,2 GB. Kurulunca (`glyphbridge cards install hymt2-q4`) ilk o denenir.

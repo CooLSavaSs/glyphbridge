@@ -817,3 +817,13 @@ def test_builtin_idiom_memory_is_opt_in_and_overridable(monkeypatch, tmp_path):
     monkeypatch.setenv("GLYPHBRIDGE_MEMORY", str(own))
     assert Memory.from_env().get("damlaya damlaya göl olur", "tr", "en") == "Little drops make a lake."
     assert BUILTIN_IDIOMS.endswith("idioms.tsv")
+
+
+def test_gguf_card_on_unsupported_cpu_is_skipped_not_fatal():
+    from glyphbridge import backends
+
+    def Crashing(**kw):
+        raise OSError("[WinError -1073741795] Windows Error 0xc000001d")
+
+    with pytest.raises(backends.BackendUnavailable):
+        backends._llama(Crashing, "x.gguf")
