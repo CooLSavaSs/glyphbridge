@@ -857,3 +857,17 @@ def test_target_language_answers_in_many_languages():
         assert p(answer) == code, answer
     for not_a_language in ["hi", "no", "ok", "How are you?", "xyz", "Merhaba"]:
         assert p(not_a_language) is None, not_a_language
+
+
+def test_loaded_cards_count_as_freeable_ram(monkeypatch):
+    from glyphbridge import backends, cards, engine as eng
+    monkeypatch.setattr(cards, "ram_budget_mb", lambda: 2000)
+    monkeypatch.setattr(backends.CACHE, "_items", backends.CACHE._items.__class__({"x": (object(), 4000)}))
+    assert eng.usable_ram_mb() == 6000
+    small, big = FakeBackend("hymt2-q4", OPUS.table), FakeBackend("madlad-int8", OPUS.table)
+    small.ram_mb, big.ram_mb = 2200, 5500
+    e = Engine(backends=[small, big], checker=FakeChecker())
+    monkeypatch.setitem(__import__("glyphbridge.routes", fromlist=["x"]).ROUTES, "tr-en",
+                        (["madlad-int8", "hymt2-q4"], "test"))
+    # 5500 MB fits once the 4000 MB already loaded can be unloaded: the measured-best card goes first.
+    assert [r[0][0].name for r in e.candidates("tr", "en")][:2] == ["madlad-int8", "hymt2-q4"]

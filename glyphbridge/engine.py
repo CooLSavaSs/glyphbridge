@@ -26,7 +26,7 @@ import os
 import unicodedata
 
 from . import cards, lid
-from .backends import Backend, BackendUnavailable, default_backends
+from .backends import CACHE, Backend, BackendUnavailable, default_backends
 from .checker import Checker, consistency
 from .emotion import Emotion
 from .memory import Memory
@@ -46,6 +46,14 @@ SUPPORTED_LANGUAGES: Dict[str, str] = {
     "sw": "Swahili", "az": "Azerbaijani", "kk": "Kazakh", "uz": "Uzbek", "ka": "Georgian",
     "la": "Latin", "ku": "Kurdish",
 }
+
+
+def usable_ram_mb() -> int:
+    """RAM a card may use: the free-RAM budget plus what the cards already loaded hold,
+    because the cache unloads them to make room. Without the second part a card that
+    would fit after unloading counted as "too big" and was skipped (FLORES re-run:
+    MADLAD lost Mongolian, Kazakh, Tibetan, Uyghur and Khmer to a weaker card)."""
+    return cards.ram_budget_mb() + CACHE.used_mb
 
 
 class TranslationError(RuntimeError):
@@ -111,7 +119,7 @@ class Engine:
         order = list(self.backends)
         if os.environ.get("GLYPHBRIDGE_PREFER", "speed") == "quality":
             order.sort(key=lambda b: 0 if b.name.startswith("gemma") else 1)
-        budget = cards.ram_budget_mb()
+        budget = usable_ram_mb()
         return sorted(order, key=lambda b: 1 if getattr(b, "ram_mb", 0) > budget else 0)
 
     def candidates(self, source: str, target: str) -> List[list]:
@@ -131,7 +139,7 @@ class Engine:
         # An explicit GLYPHBRIDGE_PREFER=quality wins over it, and a card that does not fit
         # the RAM budget stays behind the ones that do.
         if os.environ.get("GLYPHBRIDGE_PREFER", "speed") != "quality":
-            budget = cards.ram_budget_mb()
+            budget = usable_ram_mb()
             keys = routes_table.rank([b.name for b in direct], source, target)
             direct = [b for _, _, b in sorted(
                 ((1 if getattr(b, "ram_mb", 0) > budget else 0, k, b) for k, b in zip(keys, direct)),
