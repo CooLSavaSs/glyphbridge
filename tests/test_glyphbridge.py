@@ -827,3 +827,23 @@ def test_gguf_card_on_unsupported_cpu_is_skipped_not_fatal():
 
     with pytest.raises(backends.BackendUnavailable):
         backends._llama(Crashing, "x.gguf")
+
+
+def test_flores_reader_reads_aligned_lines_without_extracting(tmp_path):
+    import importlib.util
+    import io
+    import tarfile
+    spec = importlib.util.spec_from_file_location("flores", "scripts/flores.py")
+    flores = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(flores)
+    path = tmp_path / "f.tar.gz"
+    with tarfile.open(path, "w:gz") as tar:
+        for code, text in [("eng_Latn", "One.\nTwo.\nThree.\n"), ("tur_Latn", "Bir.\nİki.\nÜç.\n")]:
+            data = text.encode("utf-8")
+            info = tarfile.TarInfo(f"flores200_dataset/devtest/{code}.devtest")
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    with tarfile.open(path, "r:gz") as tar:
+        assert flores.read(tar, "tur_Latn", 2) == ["Bir.", "İki."]
+        assert flores.read(tar, "eng_Latn", 2) == ["One.", "Two."]
+    assert all(len(v) in (2, 3) for v in flores.LANGS.values()) and len(flores.LANGS) == 50

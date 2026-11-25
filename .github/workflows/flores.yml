@@ -1,0 +1,39 @@
+name: FLORES-200 (many languages)
+
+# Quality across ~50 languages on human-translated FLORES-200 sentences, with the three wide-coverage
+# 8 GB cards (Hy-MT2, TranslateGemma 4-bit, MADLAD int8) and the route table; per-pair Opus-MT
+# cards are left out (one 300 MB download per language). Long, so it runs in its own workflow and only when the
+# translation code changes (or by hand).
+on:
+  push:
+    branches: [main]
+    paths: ["glyphbridge/**", "scripts/flores.py", ".github/workflows/flores.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: flores-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flores:
+    name: FLORES-200 X->English, wide-coverage 8 GB cards
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+          pip install -e ".[small]" sacrebleu
+      - name: Install the 8 GB cards
+        run: glyphbridge cards install madlad-int8 gemma-q4 hymt2-q4
+      - name: FLORES-200, 20 sentences per language (report only)
+        env:
+          GLYPHBRIDGE_ENABLE_HYMT: "1"
+          GLYPHBRIDGE_ENABLE_GEMMA: "1"
+          GLYPHBRIDGE_BACKENDS: hymt2-q4,gemma-q4,madlad-int8
+        run: python scripts/flores.py --sentences 20 --json flores.json
