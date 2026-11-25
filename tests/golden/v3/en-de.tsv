@@ -1,0 +1,13 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	The children are playing in the garden.	Die Kinder spielen im Garten.
+questions	Where is the nearest pharmacy?	Wo ist die nächste Apotheke?
+names	Anna has been living in Munich for three years.	Anna wohnt seit drei Jahren in München.
+numbers	The company has 1,200 employees.	Die Firma hat 1.200 Mitarbeiter.
+dates	The course starts on 3 October.	Der Kurs beginnt am 3. Oktober.
+negation	Nobody told me about it.	Niemand hat mir davon erzählt.
+idioms	Keep your fingers crossed!	Drück die Daumen!
+technical	Please restart the computer to complete the installation.	Bitte starten Sie den Computer neu, um die Installation abzuschließen.
+medical	Take one tablet twice a day.	Nehmen Sie zweimal täglich eine Tablette.
+long	Although the train was late, we arrived on time because the hotel is next to the station.	Obwohl der Zug Verspätung hatte, kamen wir pünktlich an, weil das Hotel neben dem Bahnhof liegt.

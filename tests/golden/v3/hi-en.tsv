@@ -1,0 +1,12 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	मैं हर सुबह चाय पीता हूँ।	I drink tea every morning.
+general	बच्चे बगीचे में खेल रहे हैं।	The children are playing in the garden.
+questions	रेलवे स्टेशन कहाँ है?	Where is the railway station?
+names	राहुल दिल्ली में रहता है।	Rahul lives in Delhi.
+numbers	इस स्कूल में 400 छात्र हैं।	There are 400 students in this school.
+negation	किसी को जवाब नहीं पता।	Nobody knows the answer.
+idioms	जैसी करनी वैसी भरनी।	As you sow, so shall you reap.
+technical	कृपया कंप्यूटर को फिर से चालू करें।	Please restart the computer.
+long	हालांकि बहुत बारिश हो रही थी, फिर भी हम समय पर हवाई अड्डे पहुँच गए।	Although it was raining heavily, we still reached the airport on time.

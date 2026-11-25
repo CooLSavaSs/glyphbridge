@@ -1,0 +1,13 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	My sister works in a hospital.	Mi hermana trabaja en un hospital.
+questions	What time does the next bus leave?	¿A qué hora sale el próximo autobús?
+names	Carlos lives in Seville with his family.	Carlos vive en Sevilla con su familia.
+numbers	The building has 42 floors.	El edificio tiene 42 pisos.
+dates	The wedding will be on 12 May.	La boda será el 12 de mayo.
+negation	Nobody knows the answer.	Nadie sabe la respuesta.
+idioms	Better late than never.	Más vale tarde que nunca.
+technical	Click the button to download the file.	Haga clic en el botón para descargar el archivo.
+medical	Do not drive after taking this tablet.	No conduzca después de tomar este comprimido.
+long	Although we arrived late at the airport, we caught the flight because it was delayed by an hour.	Aunque llegamos tarde al aeropuerto, tomamos el vuelo porque tenía una hora de retraso.

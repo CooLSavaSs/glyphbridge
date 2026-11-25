@@ -1,0 +1,17 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+general	أشرب الشاي كل صباح.	I drink tea every morning.
+general	الأطفال يلعبون في الحديقة.	The children are playing in the garden.
+questions	أين محطة القطار؟	Where is the train station?
+names	يعيش أحمد في القاهرة منذ عشر سنوات.	Ahmed has been living in Cairo for ten years.
+names	نهر النيل أطول نهر في أفريقيا.	The Nile is the longest river in Africa.
+numbers	في المدرسة 300 طالب.	There are 300 students in the school.
+dates	يبدأ الاجتماع يوم الأحد الساعة التاسعة.	The meeting starts on Sunday at nine o'clock.
+negation	لم أذهب إلى العمل اليوم.	I did not go to work today.
+negation	لا أحد يعرف الجواب.	Nobody knows the answer.
+idioms	الصبر مفتاح الفرج.	Patience is the key to relief.
+technical	يرجى إعادة تشغيل الجهاز.	Please restart the device.
+technical	كلمة المرور غير صحيحة.	The password is incorrect.
+long	على الرغم من أن الطقس كان حارا جدا، ذهبنا إلى السوق واشترينا الفواكه والخضروات.	Although the weather was very hot, we went to the market and bought fruit and vegetables.

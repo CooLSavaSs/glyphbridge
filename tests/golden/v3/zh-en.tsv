@@ -1,0 +1,19 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+general	我每天早上喝一杯咖啡。	I drink a cup of coffee every morning.
+general	孩子们在公园里玩。	The children are playing in the park.
+questions	请问火车站怎么走？	Excuse me, how do I get to the train station?
+names	李明在上海工作。	Li Ming works in Shanghai.
+names	长江是中国最长的河流。	The Yangtze is the longest river in China.
+numbers	这本书三十五元。	This book costs 35 yuan.
+numbers	公司有两千名员工。	The company has 2,000 employees.
+dates	会议在星期五下午三点开始。	The meeting starts at 3 pm on Friday.
+negation	我从来没去过日本。	I have never been to Japan.
+negation	今天我没有时间。	I don't have time today.
+idioms	三人行，必有我师。	When three people walk together, one of them can be my teacher.
+idioms	熟能生巧。	Practice makes perfect.
+technical	请先保存文件再关闭程序。	Please save the file before closing the program.
+technical	网络连接已断开。	The network connection has been lost.
+long	虽然外面下着大雨，但是我们还是按时到达了机场。	Although it was raining heavily outside, we still arrived at the airport on time.

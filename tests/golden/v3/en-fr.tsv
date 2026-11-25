@@ -1,0 +1,13 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	It is very cold this morning.	Il fait très froid ce matin.
+questions	Can you help me carry this suitcase?	Pouvez-vous m'aider à porter cette valise ?
+names	Marie and Pierre met in Lyon.	Marie et Pierre se sont rencontrés à Lyon.
+numbers	The price has risen by 15%.	Le prix a augmenté de 15 %.
+dates	The shop is closed on Sundays.	Le magasin est fermé le dimanche.
+negation	I have never been to Canada.	Je ne suis jamais allé au Canada.
+idioms	It's raining cats and dogs.	Il pleut des cordes.
+technical	Please enter your email address to reset your password.	Veuillez saisir votre adresse e-mail pour réinitialiser votre mot de passe.
+medical	Keep this medicine out of the reach of children.	Tenez ce médicament hors de portée des enfants.
+long	As it had been raining since the morning, we decided to stay at home and watch a film.	Comme il pleuvait depuis le matin, nous avons décidé de rester à la maison et de regarder un film.

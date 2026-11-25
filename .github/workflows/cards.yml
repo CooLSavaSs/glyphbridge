@@ -43,6 +43,11 @@ jobs:
         env:
           GLYPHBRIDGE_BACKENDS: opus,opus-group,madlad-int8
         run: python scripts/golden.py tests/golden/v2/la-en.tsv:41 --json golden-v2-opus-itc.json
+      - name: Golden-v3 new pairs, default chain (report only)
+        run: |
+          python scripts/golden.py tests/golden/v3/en-de.tsv:0 tests/golden/v3/en-fr.tsv:0 tests/golden/v3/en-es.tsv:0 tests/golden/v3/en-ru.tsv:0 \
+            tests/golden/v3/en-ar.tsv:0 tests/golden/v3/en-zh.tsv:0 tests/golden/v3/fa-en.tsv:0 tests/golden/v3/ja-en.tsv:0 \
+            tests/golden/v3/ko-en.tsv:0 tests/golden/v3/hi-en.tsv:0 tests/golden/v3/sw-en.tsv:0 tests/golden/v3/el-en.tsv:0             --json golden-v3-opus.json
 
   madlad:
     name: MADLAD-400 3B (rare languages)
@@ -138,3 +143,20 @@ jobs:
           GLYPHBRIDGE_GEMMA_LANGS: en,tr,la
         run: |
           python scripts/golden.py tests/golden/v2/tr-en.tsv:0 tests/golden/v2/en-tr.tsv:0             tests/golden/v2/de-en.tsv:0 tests/golden/v2/fr-en.tsv:0 tests/golden/v2/es-en.tsv:0             tests/golden/v2/ru-en.tsv:0 tests/golden/v2/ar-en.tsv:0 tests/golden/v2/zh-en.tsv:0             tests/golden/v2/la-en.tsv:0 --json golden-v2-routes.json
+      - name: Golden-v3 new pairs, Hy-MT2 alone (report only)
+        env:
+          GLYPHBRIDGE_OFFLINE: "1"
+          GLYPHBRIDGE_BACKENDS: hymt2-q4
+          GLYPHBRIDGE_ENABLE_HYMT: "1"
+        run: |
+          python scripts/golden.py tests/golden/v3/en-de.tsv:0 tests/golden/v3/en-fr.tsv:0 tests/golden/v3/en-es.tsv:0 tests/golden/v3/en-ru.tsv:0 \
+            tests/golden/v3/en-ar.tsv:0 tests/golden/v3/en-zh.tsv:0 tests/golden/v3/fa-en.tsv:0 tests/golden/v3/ja-en.tsv:0 \
+            tests/golden/v3/ko-en.tsv:0 tests/golden/v3/hi-en.tsv:0 tests/golden/v3/sw-en.tsv:0 tests/golden/v3/el-en.tsv:0             --json golden-v3-hymt2.json
+      - name: Meaning mode (C1), Hy-MT2, idioms before/after (report only)
+        env:
+          GLYPHBRIDGE_OFFLINE: "1"
+          GLYPHBRIDGE_BACKENDS: hymt2-q4
+          GLYPHBRIDGE_ENABLE_HYMT: "1"
+          GLYPHBRIDGE_MEANING: "1"
+        run: |
+          python scripts/golden.py tests/golden/v2/tr-en.tsv:0 tests/golden/v2/en-tr.tsv:0             tests/golden/v2/ru-en.tsv:0 tests/golden/v2/zh-en.tsv:0 --json golden-v2-hymt2-meaning.json

@@ -92,6 +92,8 @@ Glyphbridge kendini kanıtlamış açık modelleri kullanır. Bir **yönlendiric
 
 Büyük setin değiştirdiği: golden-v1'de (18 cümle) Hy-MT2 tr→en'de Opus-MT'yi geçiyordu (79,6'ya 75,6); 62 cümlede Opus-MT önde (73,2'ye 70,6). Yani küçük set yanıltıyordu. İki gerçek hata çıktı: varsayılan Opus-MT `ar-en` yolu kullanılamaz çıktı veriyor (13 cümlenin hepsi işaretli) ve isim/sayı denetimi Almancada yanlış alarm veriyor (15'in 14'ü; Almanca bütün isimleri büyük harfle yazar). Deyimler her modelde en zayıf kategori (Opus-MT'de chrF 11–42).
 
+**Ölçüme dayalı yönlendirme tablosu** (`glyphbridge/routes.py`): ölçülen her çiftte en iyi kart önce denenir (Türkçe, Almanca, Fransızca için Opus-MT; İspanyolca, Rusça, Arapça, Çince için Hy-MT2; Latince için TranslateGemma 4-bit). Bütün 8 GB kartları kuruluyken golden-v2: tr→en **73,8**, en→tr 76,8, de→en 85,6, fr→en 80,1, es→en 88,9, ru→en 80,8, ar→en 90,5, zh→en 86,5, la→en 74,5. Her çift en iyi tekil kartla aynı ya da üstünde; Latince `gemma-q4`'ün tek başına aldığından 0,6 düşük. Varsayılan zincir ilk ölçülen puanın ~8 chrF altına düşerse CI kırmızı yanar.
+
 **Hy-MT2** (Tencent; Hugging Face'te en çok beğenilen çeviri modeli) Türkçe↔İngilizce için şimdiye kadar ölçülen en iyi kart: chrF **79,6** / **77,9** (Opus-MT 75,6 / 76,8), deyimlerde 46,8 (Opus-MT 28,4), tepe RAM 2,2 GB. Kurulunca (`glyphbridge cards install hymt2-q4`) ilk o denenir.
 
 ### Duygu modülü: tonu koruyun

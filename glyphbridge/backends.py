@@ -351,6 +351,17 @@ LANG_NAMES = {
 }
 
 
+# Meaning mode (opt-in, GLYPHBRIDGE_MEANING=1): ask LLM cards to carry idioms, proverbs,
+# jokes and sayings over by meaning, not word by word. Kept or dropped by golden-set numbers.
+MEANING_HINT = ("If the text contains an idiom, proverb, saying, joke or figure of speech, translate it "
+                "with an expression that a native speaker would use for the same meaning and tone, "
+                "not word for word.")
+
+
+def meaning_mode() -> bool:
+    return os.environ.get("GLYPHBRIDGE_MEANING", "0") == "1"
+
+
 def gemma_prompt(text: str, source: str, target: str) -> str:
     """TranslateGemma's translation instruction in Gemma's chat format."""
     src, tgt = LANG_NAMES.get(source, source), LANG_NAMES.get(target, target)
@@ -358,6 +369,7 @@ def gemma_prompt(text: str, source: str, target: str) -> str:
         f"You are a professional {src} ({source}) to {tgt} ({target}) translator. Your goal is to "
         f"accurately convey the meaning and nuances of the original {src} text while adhering to "
         f"{tgt} grammar, vocabulary, and cultural sensitivities.\n"
+        + (MEANING_HINT + "\n" if meaning_mode() else "") +
         f"Produce only the {tgt} translation, without any additional explanations or commentary. "
         f"Please translate the following {src} text into {tgt}:\n\n\n{text}"
     )
@@ -446,7 +458,8 @@ class HyMT2Q4Backend(Backend):
     @staticmethod
     def prompt(text: str, target: str) -> str:
         # The model card's default English prompt; it asks for full language names.
-        return (f"Translate the following text into {LANG_NAMES.get(target, target)}. Note that you should "
+        hint = (MEANING_HINT + " ") if meaning_mode() else ""
+        return (f"Translate the following text into {LANG_NAMES.get(target, target)}. {hint}Note that you should "
                 f"only output the translated result without any additional explanation:\n\n{text}")
 
     def translate(self, texts, source, target) -> Output:

@@ -1,0 +1,13 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	I read the news every day.	Я каждый день читаю новости.
+questions	Where is the nearest pharmacy?	Где находится ближайшая аптека?
+names	Ivan works as an engineer in St Petersburg.	Иван работает инженером в Санкт-Петербурге.
+numbers	There are 25 pupils in the class.	В классе 25 учеников.
+dates	The meeting will take place on Wednesday.	Встреча состоится в среду.
+negation	I don't have time.	У меня нет времени.
+idioms	Slow and steady wins the race.	Тише едешь — дальше будешь.
+technical	Save the file before closing the program.	Сохраните файл перед закрытием программы.
+medical	Take the medicine after meals.	Принимайте лекарство после еды.
+long	Although it was cold outside, we walked in the park for a long time.	Хотя на улице было холодно, мы долго гуляли в парке.

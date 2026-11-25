@@ -1,0 +1,12 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	I drink tea every morning.	أشرب الشاي كل صباح.
+questions	Where is the train station?	أين محطة القطار؟
+names	Ahmed has been living in Cairo for ten years.	يعيش أحمد في القاهرة منذ عشر سنوات.
+numbers	There are 300 students in the school.	في المدرسة 300 طالب.
+negation	Nobody knows the answer.	لا أحد يعرف الجواب.
+idioms	Patience is the key to relief.	الصبر مفتاح الفرج.
+technical	The password is incorrect.	كلمة المرور غير صحيحة.
+medical	Take one tablet a day.	تناول قرصا واحدا في اليوم.
+long	Although the weather was very hot, we went to the market and bought fruit.	على الرغم من أن الطقس كان حارا جدا، ذهبنا إلى السوق واشترينا الفواكه.

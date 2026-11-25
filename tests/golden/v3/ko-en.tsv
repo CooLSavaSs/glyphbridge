@@ -1,0 +1,12 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	저는 매일 아침 커피를 마십니다.	I drink coffee every morning.
+general	아이들이 공원에서 놀고 있습니다.	The children are playing in the park.
+questions	기차역이 어디에 있어요?	Where is the train station?
+names	민수는 서울에 살고 있습니다.	Minsu lives in Seoul.
+numbers	이 회사에는 직원이 500명 있습니다.	This company has 500 employees.
+negation	아무도 답을 모릅니다.	Nobody knows the answer.
+idioms	가는 말이 고와야 오는 말이 곱다.	Kind words get kind words back.
+technical	비밀번호가 틀렸습니다.	The password is incorrect.
+long	비가 많이 왔지만 우리는 제시간에 공항에 도착했습니다.	It rained a lot, but we arrived at the airport on time.

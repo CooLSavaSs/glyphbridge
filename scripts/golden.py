@@ -77,7 +77,15 @@ def main(argv=None):
         pair = os.path.basename(path).rsplit(".", 1)[0]
         src_lang, tgt_lang = pair.split("-")
         rows = load(path)
-        results = engine.translate_batch([s for _, s, _ in rows], target=tgt_lang, source=src_lang)
+        try:
+            results = engine.translate_batch([s for _, s, _ in rows], target=tgt_lang, source=src_lang)
+        except Exception as exc:  # noqa: BLE001 - one unsupported pair must not hide the others
+            print(f"SKIP {pair}: {exc}", flush=True)
+            lines.append(f"| **{pair}** | **no card** | {len(rows)} | – | – | – |")
+            report["files"][pair] = {"sentences": len(rows), "error": str(exc), "threshold": threshold}
+            if threshold:
+                failed = True
+            continue
 
         total = score(rows, results)
         total["models"] = sorted({r.model for r in results})

@@ -1,0 +1,13 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	I drink a cup of coffee every morning.	我每天早上喝一杯咖啡。
+questions	How do I get to the train station?	火车站怎么走？
+names	Li Ming works in Shanghai.	李明在上海工作。
+numbers	The company has 2,000 employees.	公司有两千名员工。
+dates	The meeting starts at 3 pm on Friday.	会议在星期五下午三点开始。
+negation	I have never been to Japan.	我从来没去过日本。
+idioms	Practice makes perfect.	熟能生巧。
+technical	Please save the file before closing the program.	请在关闭程序前保存文件。
+medical	Take this medicine three times a day.	这种药每天服用三次。
+long	Although it was raining heavily, we still arrived at the airport on time.	虽然下着大雨，我们还是按时到达了机场。

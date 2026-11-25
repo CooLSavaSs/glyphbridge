@@ -93,6 +93,8 @@ RAM figures marked *measured* are the peak of a whole process (Python, libraries
 
 What the larger set changed: on golden-v1 (18 sentences) Hy-MT2 beat Opus-MT for tr→en (79.6 vs 75.6); on 62 sentences Opus-MT is ahead (73.2 vs 70.6), so small sets mislead. Two real bugs surfaced: the default Opus-MT `ar-en` path returns unusable output (all 13 sentences flagged), and the name/number check raises false alarms on German (14 of 15 flagged, because German capitalises every noun). Idioms stay the weakest category for every model (chrF 11–42 for Opus-MT).
 
+**Measured route table** (`glyphbridge/routes.py`): for each measured pair the best card goes first (Opus-MT for Turkish, German and French; Hy-MT2 for Spanish, Russian, Arabic and Chinese; TranslateGemma 4-bit for Latin). With all 8 GB cards installed, golden-v2 gives tr→en **73.8**, en→tr 76.8, de→en 85.6, fr→en 80.1, es→en 88.9, ru→en 80.8, ar→en 90.5, zh→en 86.5, la→en 74.5: every pair at or above the best single card, Latin 0.6 below `gemma-q4` alone. CI fails if the default chain drops ~8 chrF below its first measured score.
+
 Not used by default because their licenses forbid commercial use or exclude regions: NLLB-200 (CC-BY-NC), Cohere North Small Translate (CC-BY-NC). (Tencent Hy-MT2 used to be in this list; it is Apache 2.0 now and is the `hymt2-q4` card.)
 
 **Hy-MT2** (Tencent, the most-liked translation model on Hugging Face) is the best card measured so far for Turkish↔English: chrF **79.6** / **77.9** against Opus-MT's 75.6 / 76.8, idioms 46.8 against 28.4, at 2.2 GB peak RAM. Once installed (`glyphbridge cards install hymt2-q4`) it is tried first.

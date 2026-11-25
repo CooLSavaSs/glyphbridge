@@ -663,6 +663,13 @@ def test_golden_sets_are_well_formed_and_v2_keeps_v1():
         old, new = rows(path), rows(root / "v2" / path.name)
         assert new[:len(old)] == old, f"v2/{path.name} must start with the v1 rows"
     assert sum(len(rows(p)) for p in (root / "v2").glob("*.tsv")) >= 200
+    for path in sorted((root / "v2").glob("*.tsv")):
+        assert (root / "v3" / path.name).read_bytes() == path.read_bytes(), f"v3/{path.name} must equal v2"
+    for version in ("v3",):
+        for path in sorted((root / version).glob("*.tsv")):
+            r = rows(path)
+            assert len({s for _, s, _ in r}) == len(r), f"duplicate source in {version}/{path.name}"
+    assert len(list((root / "v3").glob("*.tsv"))) >= 21
 
 
 def test_german_capitalised_nouns_are_not_names():
@@ -755,3 +762,13 @@ def test_measured_route_table_puts_best_card_first(monkeypatch):
     assert routes.rank(["hymt2-q4", "opus"], "xx", "yy") == [0, 1]
     for pair, (cards, why) in routes.ROUTES.items():
         assert cards and why and "-" in pair
+
+
+def test_meaning_mode_adds_idiom_hint_only_when_on(monkeypatch):
+    from glyphbridge import backends
+    monkeypatch.delenv("GLYPHBRIDGE_MEANING", raising=False)
+    assert backends.MEANING_HINT not in backends.gemma_prompt("Damlaya damlaya göl olur.", "tr", "en")
+    assert backends.MEANING_HINT not in backends.HyMT2Q4Backend.prompt("x", "en")
+    monkeypatch.setenv("GLYPHBRIDGE_MEANING", "1")
+    assert backends.MEANING_HINT in backends.gemma_prompt("Damlaya damlaya göl olur.", "tr", "en")
+    assert backends.MEANING_HINT in backends.HyMT2Q4Backend.prompt("x", "en")

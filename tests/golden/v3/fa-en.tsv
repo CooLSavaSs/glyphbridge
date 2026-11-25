@@ -1,0 +1,12 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	من هر روز صبح چای می‌نوشم.	I drink tea every morning.
+general	بچه‌ها در پارک بازی می‌کنند.	The children are playing in the park.
+questions	ایستگاه قطار کجاست؟	Where is the train station?
+names	علی در تهران زندگی می‌کند.	Ali lives in Tehran.
+numbers	این کتاب ۲۰۰ صفحه دارد.	This book has 200 pages.
+negation	هیچ‌کس جواب را نمی‌داند.	Nobody knows the answer.
+idioms	قطره قطره جمع گردد، وانگهی دریا شود.	Drop by drop, a river is formed.
+technical	لطفاً رایانه را دوباره راه‌اندازی کنید.	Please restart the computer.
+long	با اینکه هوا خیلی سرد بود، ما برای پیاده‌روی به کنار دریا رفتیم.	Although the weather was very cold, we went for a walk by the sea.

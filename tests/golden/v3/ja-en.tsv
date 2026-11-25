@@ -1,0 +1,13 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	毎朝コーヒーを飲みます。	I drink coffee every morning.
+general	子供たちは公園で遊んでいます。	The children are playing in the park.
+questions	駅はどこですか。	Where is the station?
+names	田中さんは大阪に住んでいます。	Mr Tanaka lives in Osaka.
+numbers	このビルは30階建てです。	This building has 30 floors.
+dates	会議は金曜日の午後3時に始まります。	The meeting starts at 3 pm on Friday.
+negation	日本に行ったことがありません。	I have never been to Japan.
+idioms	猿も木から落ちる。	Even monkeys fall from trees.
+technical	プログラムを閉じる前にファイルを保存してください。	Please save the file before closing the program.
+long	雨が強く降っていましたが、私たちは時間通りに空港に着きました。	It was raining heavily, but we arrived at the airport on time.

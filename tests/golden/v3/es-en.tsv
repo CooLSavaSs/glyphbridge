@@ -1,0 +1,19 @@
+# golden-v2. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v2 = every golden-v1 row (unchanged, so scores stay comparable) + new rows.
+# Categories: general, questions, names, numbers, dates, negation, idioms, technical, medical,
+# formal, morphology, long. One reference per sentence, so chrF is a lower bound for valid paraphrases.
+general	Mi hermana trabaja en un hospital.	My sister works in a hospital.
+general	Vamos a la playa todos los veranos.	We go to the beach every summer.
+questions	¿A qué hora sale el próximo autobús?	What time does the next bus leave?
+names	Carlos vive en Sevilla con su familia.	Carlos lives in Seville with his family.
+names	México es el país con más hispanohablantes del mundo.	Mexico is the country with the most Spanish speakers in the world.
+numbers	El edificio tiene 42 pisos.	The building has 42 floors.
+numbers	Pagamos 3.500 euros por el coche.	We paid 3,500 euros for the car.
+dates	La boda será el 12 de mayo.	The wedding will be on 12 May.
+negation	No tengo ni idea.	I have no idea.
+negation	Nadie sabe la respuesta.	Nobody knows the answer.
+idioms	Siempre está en las nubes.	His head is always in the clouds.
+idioms	Más vale tarde que nunca.	Better late than never.
+technical	Haga clic en el botón para descargar el archivo.	Click the button to download the file.
+technical	La batería dura hasta diez horas.	The battery lasts up to ten hours.
+long	Aunque llegamos tarde al aeropuerto, pudimos tomar el vuelo porque había un retraso de una hora.	Although we arrived late at the airport, we were able to catch the flight because there was a one-hour delay.

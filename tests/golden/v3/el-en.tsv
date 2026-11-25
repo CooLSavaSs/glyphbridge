@@ -1,0 +1,12 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	Πίνω καφέ κάθε πρωί.	I drink coffee every morning.
+general	Τα παιδιά παίζουν στον κήπο.	The children are playing in the garden.
+questions	Πού είναι ο σιδηροδρομικός σταθμός;	Where is the railway station?
+names	Η Μαρία μένει στην Αθήνα.	Maria lives in Athens.
+numbers	Το κτίριο έχει 12 ορόφους.	The building has 12 floors.
+negation	Κανείς δεν ξέρει την απάντηση.	Nobody knows the answer.
+idioms	Ένα χελιδόνι δεν φέρνει την άνοιξη.	One swallow does not make a spring.
+technical	Παρακαλώ επανεκκινήστε τον υπολογιστή.	Please restart the computer.
+long	Αν και έβρεχε πολύ, φτάσαμε στο αεροδρόμιο στην ώρα μας.	Although it was raining a lot, we arrived at the airport on time.

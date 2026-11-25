@@ -1,0 +1,12 @@
+# golden-v3. Columns: category<TAB>source<TAB>reference. Hand-written; a sanity set, not a benchmark.
+# v3 = every golden-v2 file (unchanged) + English->X directions + Persian, Japanese, Korean,
+# Hindi, Swahili and Greek into English. One reference per sentence.
+general	Ninakunywa chai kila asubuhi.	I drink tea every morning.
+general	Watoto wanacheza bustanini.	The children are playing in the garden.
+questions	Kituo cha treni kiko wapi?	Where is the train station?
+names	Juma anaishi Nairobi.	Juma lives in Nairobi.
+numbers	Shule hii ina wanafunzi 300.	This school has 300 students.
+negation	Hakuna anayejua jibu.	Nobody knows the answer.
+idioms	Haraka haraka haina baraka.	Haste has no blessing.
+technical	Tafadhali washa upya kompyuta.	Please restart the computer.
+long	Ingawa mvua ilikuwa inanyesha sana, tulifika uwanja wa ndege kwa wakati.	Although it was raining heavily, we arrived at the airport on time.

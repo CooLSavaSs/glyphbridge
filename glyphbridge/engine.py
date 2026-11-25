@@ -98,6 +98,7 @@ class Engine:
                 # every lookup a cache miss.
                 tuple(b.name for b in self._ordered()),
                 routes_table.VERSION if routes_table.enabled() else None,
+                os.environ.get("GLYPHBRIDGE_MEANING", "0"),
                 self.memory.fingerprint(), self.emotion.enabled())
 
     def _ordered(self) -> List[Backend]:
