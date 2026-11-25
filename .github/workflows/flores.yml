@@ -9,6 +9,13 @@ on:
     branches: [main]
     paths: ["glyphbridge/**", "scripts/flores.py", ".github/workflows/flores.yml"]
   workflow_dispatch:
+    inputs:
+      backends:
+        description: "Cards to use, e.g. madlad-int8 (default: the three wide-coverage cards)"
+        default: "hymt2-q4,gemma-q4,madlad-int8"
+      langs:
+        description: "FLORES codes separated by spaces (default: all 50)"
+        default: ""
 
 concurrency:
   group: flores-${{ github.ref }}
@@ -35,5 +42,6 @@ jobs:
         env:
           GLYPHBRIDGE_ENABLE_HYMT: "1"
           GLYPHBRIDGE_ENABLE_GEMMA: "1"
-          GLYPHBRIDGE_BACKENDS: hymt2-q4,gemma-q4,madlad-int8
-        run: python scripts/flores.py --sentences 20 --json flores.json
+          GLYPHBRIDGE_BACKENDS: ${{ inputs.backends || 'hymt2-q4,gemma-q4,madlad-int8' }}
+          LANGS: ${{ inputs.langs }}
+        run: python scripts/flores.py --sentences 20 ${LANGS:+--langs $LANGS} --json flores.json
