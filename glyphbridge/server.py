@@ -26,6 +26,7 @@ from .engine import SUPPORTED_LANGUAGES, Engine, TranslationError, ask_target, g
 
 MAX_TEXTS = 64
 MAX_CHARS = 20_000
+MAX_PHOTO_BYTES = 8 * 1024 * 1024
 
 
 class TranslateRequest(BaseModel):
@@ -34,6 +35,25 @@ class TranslateRequest(BaseModel):
     source: str = Field("auto", description="Source language code, or 'auto'.")
     target: Optional[str] = Field(None, description="Target language code, e.g. 'en'. If missing, "
                                   "Glyphbridge does not translate but asks for it (HTTP 422).")
+
+
+class PhotoRequest(BaseModel):
+    image: str = Field(..., description="The photo as base64, or a data URL (data:image/jpeg;base64,...).")
+    source: str = Field("auto", description="Language in the photo, or 'auto'.")
+    target: str = Field(..., description="Target language code, e.g. 'en'.")
+
+
+def _decode_photo(data: str) -> bytes:
+    import base64
+    import binascii
+    if data.startswith("data:"):
+        data = data.split(",", 1)[-1]
+    if len(data) > MAX_PHOTO_BYTES * 4 // 3 + 4:
+        raise HTTPException(status_code=413, detail=f"Photo larger than {MAX_PHOTO_BYTES // (1024 * 1024)} MB")
+    try:
+        return base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="image is not valid base64") from exc
 
 
 def _chat_reply(model: str, content: str, extra: dict) -> dict:
@@ -119,6 +139,41 @@ def create_app(engine: Optional[Engine] = None, api_key: Optional[str] = None,
         if req.texts is None:
             return results[0].to_dict()
         return {"results": [r.to_dict() for r in results]}
+
+    @app.post("/v1/photo", dependencies=[Depends(auth)])
+    def photo(req: PhotoRequest, eng: Engine = Depends(engine_dep)):
+        """Photo / camera mode: OCR the photo, translate each line, return the lines with
+        their boxes (pixels of the sent image) so a viewer can draw them over the picture."""
+        import tempfile
+        from . import documents
+        raw = _decode_photo(req.image)
+        tmp = tempfile.mkdtemp(prefix="glyphbridge-photo-")
+        path = os.path.join(tmp, "photo.img")
+        try:
+            with open(path, "wb") as fh:
+                fh.write(raw)
+            try:
+                _, results = documents.translate_image(
+                    path, target=req.target, source=req.source, out=os.path.join(tmp, "out.txt"),
+                    translator=lambda texts, target, source: eng.translate_batch(texts, target=target, source=source))
+            except TranslationError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            except RuntimeError as exc:  # OCR not installed
+                raise HTTPException(status_code=501, detail=str(exc)) from exc
+            except OSError as exc:  # not an image PIL can read
+                raise HTTPException(status_code=422, detail=f"Cannot read the image: {exc}") from exc
+        finally:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+        return {"lines": [r.to_dict() for r in results]}
+
+    @app.get("/camera", include_in_schema=False)
+    def camera():
+        """Live camera page: webcam or phone browser, translation drawn over the picture."""
+        from fastapi.responses import HTMLResponse
+        page = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "camera.html")
+        with open(page, encoding="utf-8") as fh:
+            return HTMLResponse(fh.read())
 
     # -- OpenAI-compatible endpoint ---------------------------------------
     # Lets tools that speak the OpenAI Chat Completions API use Glyphbridge with no

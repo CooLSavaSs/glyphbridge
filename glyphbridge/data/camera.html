@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glyphbridge camera</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+  header { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; padding: .5rem; }
+  header label { display: flex; gap: .25rem; align-items: center; font-size: .9rem; }
+  input, select, button { font: inherit; padding: .3rem .5rem; }
+  #stage { position: relative; flex: 1; background: #000; }
+  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  #status { padding: .4rem .6rem; font-size: .85rem; min-height: 1.2em; }
+  .warn { color: #b45309; }
+</style>
+</head>
+<body>
+<header>
+  <button id="start">Start camera</button>
+  <label>From <input id="source" value="auto" size="5" aria-label="Source language"></label>
+  <label>To <input id="target" value="en" size="5" aria-label="Target language"></label>
+  <label>Every <select id="every"><option value="1500">1.5 s</option><option value="3000" selected>3 s</option><option value="6000">6 s</option></select></label>
+  <label>API key <input id="key" type="password" size="12" placeholder="if the server needs one" autocomplete="off"></label>
+  <button id="flip" title="Switch front/back camera">↺</button>
+</header>
+<div id="stage"><video id="video" playsinline muted></video><canvas id="overlay"></canvas></div>
+<div id="status">Translation is drawn over the picture. Nothing leaves this server.</div>
+<script>
+"use strict";
+// Live camera: a frame is sampled every few seconds, sent to POST /v1/photo on this same
+// server (OCR + translation), and the translated lines are drawn over their boxes.
+// Text is drawn on a canvas, never inserted as HTML.
+const $ = (id) => document.getElementById(id);
+const video = $("video"), overlay = $("overlay"), status = $("status");
+const keyBox = $("key");
+let stream = null, facing = "environment", timer = null, busy = false, last = null;
+// The key stays in this tab only; storage can be blocked (private mode), so never let it stop the page.
+try { keyBox.value = sessionStorage.getItem("glyphbridge-key") || ""; } catch (e) { /* no storage */ }
+keyBox.addEventListener("change", () => { try { sessionStorage.setItem("glyphbridge-key", keyBox.value); } catch (e) { /* no storage */ } });
+const MAX_SIDE = 1600;  // downscale large frames: faster upload and OCR
+
+function say(text, warn) { status.textContent = text; status.className = warn ? "warn" : ""; }
+
+async function start() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    say("This browser cannot open the camera here. Phones need https:// (or localhost).", true); return;
+  }
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
+  } catch (e) { say("Camera not available: " + e.message, true); return; }
+  video.srcObject = stream; await video.play();
+  clearInterval(timer); timer = setInterval(sample, Number($("every").value));
+  say("Camera on. Hold the text steady.");
+}
+
+function frame() {
+  const w = video.videoWidth, h = video.videoHeight;
+  if (!w || !h) return null;
+  const scale = Math.min(1, MAX_SIDE / Math.max(w, h));
+  const c = document.createElement("canvas");
+  c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+  c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+  return { url: c.toDataURL("image/jpeg", 0.85), w: c.width, h: c.height };
+}
+
+async function sample() {
+  if (busy) return;           // skip frames while the previous one is still being read
+  const f = frame(); if (!f) return;
+  busy = true;
+  const headers = { "Content-Type": "application/json" };
+  if (keyBox.value) headers["Authorization"] = "Bearer " + keyBox.value;
+  try {
+    const r = await fetch("/v1/photo", { method: "POST", headers,
+      body: JSON.stringify({ image: f.url, source: $("source").value || "auto", target: $("target").value }) });
+    const data = await r.json();
+    if (!r.ok) { say("Server: " + (typeof data.detail === "string" ? data.detail : r.status), true); return; }
+    last = { lines: data.lines || [], w: f.w, h: f.h };
+    draw();
+    const unsure = last.lines.filter((l) => l.expert_review_required).length;
+    say(`${last.lines.length} lines` + (unsure ? `, ${unsure} need a closer look` : ""), unsure > 0);
+  } catch (e) { say("Request failed: " + e.message, true); }
+  finally { busy = false; }
+}
+
+function draw() {
+  const rect = overlay.getBoundingClientRect();
+  overlay.width = rect.width * devicePixelRatio; overlay.height = rect.height * devicePixelRatio;
+  const g = overlay.getContext("2d");
+  g.clearRect(0, 0, overlay.width, overlay.height);
+  if (!last) return;
+  // Same "contain" fit as the video element.
+  const s = Math.min(overlay.width / last.w, overlay.height / last.h);
+  const ox = (overlay.width - last.w * s) / 2, oy = (overlay.height - last.h * s) / 2;
+  for (const line of last.lines) {
+    if (!line.box) continue;
+    const [l, t, r, b] = line.box;
+    const x = ox + l * s, y = oy + t * s, w = (r - l) * s, h = (b - t) * s;
+    g.fillStyle = line.expert_review_required ? "rgba(180,83,9,.85)" : "rgba(0,0,0,.75)";
+    g.fillRect(x, y, w, h);
+    let size = Math.max(10, h * 0.8);
+    g.font = `${size}px system-ui, sans-serif`;
+    while (size > 10 && g.measureText(line.translation).width > w) { size -= 1; g.font = `${size}px system-ui, sans-serif`; }
+    g.fillStyle = "#fff"; g.textBaseline = "middle";
+    g.fillText(line.translation, x + 2, y + h / 2, Math.max(w - 4, 10));
+  }
+}
+
+$("start").addEventListener("click", start);
+$("flip").addEventListener("click", () => { facing = facing === "environment" ? "user" : "environment"; if (stream) start(); });
+$("every").addEventListener("change", () => { if (stream) { clearInterval(timer); timer = setInterval(sample, Number($("every").value)); } });
+window.addEventListener("resize", draw);
+</script>
+</body>
+</html>

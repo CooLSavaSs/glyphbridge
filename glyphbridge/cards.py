@@ -43,48 +43,56 @@ class Card:
 
 CARDS: Dict[str, Card] = {
     "madlad-int8": Card("madlad-int8", "MADLAD-400 3B int8 — 400+ languages, fits 8 GB PCs",
-                        "Nextcloud-AI/madlad400-3b-mt-ct2-int8", 5500, "~3.0 GB", "Apache-2.0",
+                        "Nextcloud-AI/madlad400-3b-mt-ct2-int8", 5500, "2.98 GB", "Apache-2.0",
                         "Default rare-language card (CTranslate2). 3.3-5.5 GB peak RAM measured in CI (two runs).",
                     revision="aa32bbdeba7880eff2096ec044cb155a340a9400",
                     sha256=(("model.bin", "77b9fd9ab97c1259d07089b5f854393dad81bc5fb5647d3f9a5d101c94f40daa"),
                             ("spiece.model", "ef11ac9a22c7503492f56d48dce53be20e339b63605983e9f27d2cd0e0f3922c"))),
     "gemma-q4": Card("gemma-q4", "TranslateGemma 4B 4-bit — highest quality, fits 8 GB PCs",
-                     "anilb/translategemma-gguf", 4800, "~2.5 GB", "Gemma terms",
+                     "anilb/translategemma-gguf", 4800, "2.49 GB", "Gemma terms",
                      "Community Q4_K_M quantization run with llama.cpp. Installing it turns it on. "
                      "4.6-4.8 GB peak RAM measured in CI.",
                     revision="b4a4747a01c36cadf60238985cd31dc6ea66b760",
                     sha256=(("translategemma-4b-it.Q4_K_M.gguf",
                              "81200d03e843d2ec1ece6eeafe7d13cb6e5211e1fcd336ade55790b683a08330"),)),
     "hymt2-q4": Card("hymt2-q4", "Hy-MT2 1.8B 4-bit — 36 languages, best measured TR<->EN, 2.2 GB",
-                     "tencent/Hy-MT2-1.8B-GGUF", 2200, "~1.1 GB", "Apache-2.0",
+                     "tencent/Hy-MT2-1.8B-GGUF", 2200, "1.13 GB", "Apache-2.0",
                      "Official Q4_K_M GGUF run with llama.cpp. 2.2 GB peak RAM measured in CI.",
                      revision="a0c709d9fac510f2c807aa3af52872340dc37a4a",
                      sha256=(("Hy-MT2-1.8B-Q4_K_M.gguf",
                               "dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699"),)),
     "emotion": Card("emotion", "Emotion module — keeps the tone (positive / neutral / negative)",
-                    "lxyuan/distilbert-base-multilingual-cased-sentiments-student", 850, "~0.55 GB",
+                    "lxyuan/distilbert-base-multilingual-cased-sentiments-student", 850, "0.55 GB",
                     "Apache-2.0", "Flags translations whose tone flips, e.g. a kind sentence that turns negative.",
                     revision="cf991100d706c13c0a080c097134c05b7f436c45",
                     sha256=(("model.safetensors",
                              "0ab095b69033944004bb7a6ffcbfc2d77a240dd0f71c27820aa73efa71f664fe"),)),
     "madlad": Card("madlad", "MADLAD-400 3B full size — opt-in, needs ~8 GB free RAM",
-                   "google/madlad400-3b-mt", 6500, "~12 GB", "Apache-2.0",
+                   "google/madlad400-3b-mt", 6500, "11.8 GB", "Apache-2.0",
                    "Loaded in bfloat16 (6.5 GB measured). Prefer madlad-int8 on 8 GB PCs.",
                     revision="fa184c675da0b5c9e1c8694fccd4e12e2d422094"),
     "gemma": Card("gemma", "TranslateGemma 4B full size — gated, images",
-                  "google/translategemma-4b-it", 9400, "~8.6 GB", "Gemma terms",
+                  "google/translategemma-4b-it", 9400, "8.64 GB", "Gemma terms",
                   "Gated: accept the terms on Hugging Face and log in first. Needs ~16 GB RAM; "
                   "use gemma-q4 on 8 GB PCs.",
                     revision="10042cb0e6e7fdce748996a71dc3dc432a4e0c89"),
     "lid": Card("lid", "GlotLID — language identification, 1,600+ languages",
-                "cis-lmu/glotlid", 1000, "~0.8 GB", "Apache-2.0", "",
+                "cis-lmu/glotlid", 1000, "0.78 GB", "Apache-2.0", "",
                     revision="e9592e0a9bc3b6f2a946de94faaa188d1dd6f522",
                     sha256=(("model.bin", "3b26297652e105cb63acde0fbf5aa228161528b519331e58a7c94ea9fe58474c"),)),
     "checker": Card("checker", "LaBSE — meaning checker, 109 languages",
-                    "sentence-transformers/LaBSE", 1000, "~1.9 GB", "Apache-2.0",
+                    "sentence-transformers/LaBSE", 1000, "1.90 GB", "Apache-2.0",
                     revision="836121a0533e5664b21c7aacc5d22951f2b8b25b"),
+    "ota-ocr": Card("ota-ocr", "Azra 1-Mini 0.8B — Ottoman Turkish OCR (Arabic script), line images",
+                    "OttomanNLP/Azra-1-Mini-0.8b", 3500, "1.73 GB", "Apache-2.0",
+                    "Qwen3.5 vision-language model, needs transformers>=5.14. Reads one text LINE per image; "
+                    "glyphbridge cuts pages into lines first. Authors report 80.2% (nesih) / 67.1% (rika) "
+                    "character accuracy - not measured by us yet. RAM is an estimate.",
+                    revision="7c1c429e9f3d3bad1d59b6ef802264f694b171be",
+                    sha256=(("model.safetensors",
+                             "dc497f9ba93f6f47fac82a7eb960cd8e70d810d6abd9615a3d563861d0afe87d"),)),
     "whisper": Card("whisper", "Whisper small — speech to text, ~99 languages",
-                    "openai/whisper-small", 1000, "~1 GB", "MIT", "Reading audio files needs ffmpeg.",
+                    "openai/whisper-small", 1000, "0.97 GB", "MIT", "Reading audio files needs ffmpeg.",
                     revision="973afd24965f72e36ca33b3055d56a652f456b4d"),
 }
 
@@ -166,7 +174,7 @@ def install(card_id: str) -> str:
         last = None
         for repo in opus_repos(card_id[len(OPUS_PREFIX):]):
             try:
-                return snapshot_download(repo)
+                return snapshot_download(repo, ignore_patterns=OPUS_IGNORE)
             except Exception as exc:  # try the base model next
                 last = exc
         raise RuntimeError(f"No Opus-MT model for {card_id}: {last}")
@@ -177,9 +185,34 @@ def install(card_id: str) -> str:
         verify(card_id)
         return path
     card = resolve(card_id)
-    path = snapshot_download(card.repo, revision=card.revision)
+    path = snapshot_download(card.repo, revision=card.revision, allow_patterns=ALLOW_PATTERNS.get(card_id),
+                             ignore_patterns=IGNORE_PATTERNS.get(card_id))
     verify(card_id)
     return path
+
+
+# Cards whose repos hold extra files we do not need (banners, sample images).
+ALLOW_PATTERNS = {
+    "ota-ocr": ["*.json", "*.jinja", "model.safetensors", "README*.md"],
+}
+
+# Repos that keep the same weights in several formats or versions; the code loads only
+# one of them. Without these lists `cards install` downloaded 6.6 GB for `lid` (0.8 GB
+# used), 9.4 GB for `checker` (1.9 GB), 3.9 GB for `whisper` (1 GB), 15.7 GB for
+# `madlad` (11.8 GB) and 1.6 GB for `emotion` (0.5 GB) — measured from the Hub file
+# list at the pinned revisions. Patterns match from the repo root, so a file of the
+# same name in a subfolder (LaBSE's 2_Dense/) is kept.
+# Opus-MT repos keep the weights twice (PyTorch + TensorFlow, ~300 MB each; measured on
+# opus-mt-yo-en / ig-en: 594 MB -> ~300 MB). The PyTorch copy is the one we load.
+OPUS_IGNORE = ["tf_model.h5", "flax_model.msgpack", "rust_model.ot", "*.onnx"]
+
+IGNORE_PATTERNS = {
+    "lid": ["model_v*"],                                   # lid.py loads model.bin
+    "checker": ["tf_model.h5", "flax_model.msgpack", "onnx/*", "pytorch_model.bin"],
+    "whisper": ["tf_model.h5", "flax_model.msgpack", "pytorch_model.bin"],
+    "madlad": ["*.gguf"],
+    "emotion": ["onnx/*", "pytorch_model.bin"],
+}
 
 
 def remove(card_id: str) -> int:

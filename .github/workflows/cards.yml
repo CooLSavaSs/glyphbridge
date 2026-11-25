@@ -23,7 +23,7 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-tur espeak-ng ffmpeg fonts-dejavu-core
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e ".[lid,checker,ocr,docs]"
+          pip install -e ".[transformers,lid,checker,ocr,docs]"
       - name: Run real-model checks
         run: python scripts/smoke_cards.py lid checker ocr pipeline speech
       - name: Golden-set regression (Opus-MT + checker)
@@ -62,7 +62,7 @@ jobs:
       - name: Install
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e .
+          pip install -e ".[transformers]"
       - name: Run MADLAD check
         run: python scripts/smoke_cards.py madlad
 
@@ -93,6 +93,18 @@ jobs:
       - name: Run full TranslateGemma check
         if: steps.token.outputs.run == 'yes'
         run: python scripts/smoke_cards.py gemma
+      # D2: speed and quality of the full 9.4 GB card in low-RAM mode (layers streamed from disk),
+      # on the small golden-v1 sets so the run stays within the job time.
+      - name: Full TranslateGemma in low-RAM mode, golden-v1 speed and quality (D2, report only)
+        if: steps.token.outputs.run == 'yes'
+        env:
+          GLYPHBRIDGE_LOW_RAM: "1"
+          GLYPHBRIDGE_LOW_RAM_MB: "3000"
+          GLYPHBRIDGE_BACKENDS: gemma
+          GLYPHBRIDGE_ENABLE_GEMMA: "1"
+        run: |
+          pip install sacrebleu
+          python scripts/profiles_bench.py --profiles balanced --json d2-lowram.json             tests/golden/v1/tr-en.tsv tests/golden/v1/en-tr.tsv tests/golden/v1/la-en.tsv
       # D1: the same 9.4 GB model under a hard 6 GB memory cap (no swap), layers streamed
       # from disk. Proves a model larger than RAM runs on an 8 GB PC; measures the time.
       - name: Full TranslateGemma in low-RAM mode under a 6 GB memory cap
@@ -112,9 +124,16 @@ jobs:
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-          pip install -e ".[small]"
+          pip install -e ".[small,transformers]"
       - name: Run 8 GB card checks
         run: python scripts/smoke_cards.py --isolate madlad-int8 gemma-q4 hymt2-q4 emotion
+      - name: Speed profiles with all 8 GB cards installed (13, report only)
+        env:
+          GLYPHBRIDGE_OFFLINE: "1"
+          GLYPHBRIDGE_ENABLE_HYMT: "1"
+        run: |
+          pip install sacrebleu
+          python scripts/profiles_bench.py --json profiles.json tests/golden/v2/tr-en.tsv tests/golden/v2/en-tr.tsv
       - name: Language coverage of the installed 8 GB cards (E1)
         run: |
           glyphbridge languages --all > coverage.tsv

@@ -70,6 +70,18 @@ def _ensure_target(args: argparse.Namespace, sample: str) -> int:
 
 
 def _cmd_translate(args: argparse.Namespace) -> int:
+    if getattr(args, "ocr_only", False):
+        if not args.file:
+            print("error: --ocr-only needs --file <image>", file=sys.stderr)
+            return 2
+        from .documents import ocr_only
+        out, regions = ocr_only(args.file, source=args.source, out=args.output)
+        if args.json:
+            print(json.dumps({"output": out, "lines": regions}, ensure_ascii=False, indent=2))
+        else:
+            print(f"{len(regions)} OCR lines -> {out}\nCorrect the text, then: "
+                  f"glyphbridge translate --file {out} --to <language>", file=sys.stderr)
+        return 0
     if args.file and not args.to:
         rc = _ensure_target(args, os.path.basename(args.file))
         if rc:
@@ -206,9 +218,41 @@ def _cmd_languages(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ottoman(args) -> int:
+    from . import ottoman
+    lines = ottoman.read_page(args.image, lines_already=args.line)
+    out = args.output or os.path.splitext(args.image)[0] + ".ota.txt"
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write(ottoman.to_text(lines))
+    if args.json:
+        print(json.dumps({"output": out, "note": ottoman.REVIEW_NOTE, "lines": [line.to_dict() for line in lines]},
+                         ensure_ascii=False, indent=2))
+    else:
+        print(ottoman.to_text(lines))
+        print(f"\n{len(lines)} lines -> {out}\n! {ottoman.REVIEW_NOTE}", file=sys.stderr)
+    return 0
+
+
+def _cmd_signs(args) -> int:
+    from . import ancient
+    text = " ".join(args.text)
+    found = ancient.signs(text)
+    if args.json:
+        print(json.dumps([s.to_dict() for s in found], ensure_ascii=False, indent=2))
+    elif found:
+        print(ancient.sign_list(text))
+    if not found:
+        print("No hieroglyph or cuneiform characters found (Unicode input needed; photos are not "
+              "recognised yet).", file=sys.stderr)
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="glyphbridge", description="Free, offline translation for every script.")
+    p = argparse.ArgumentParser(prog="glyphbridge", description="Free, offline translation toolkit.")
     p.add_argument("--version", action="version", version=f"glyphbridge {__version__}")
+    p.add_argument("--profile", choices=["fast", "balanced", "quality", "low-ram"],
+                   help="Speed/RAM/quality trade-off (or GLYPHBRIDGE_PROFILE); your own settings still win")
     sub = p.add_subparsers(dest="command", required=True)
 
     t = sub.add_parser("translate", help="Translate text or a text file")
@@ -219,9 +263,14 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("--from", dest="source", default="auto", help="Source language code (default: auto)")
     t.add_argument("--to", "-t", help="Target language code (asked for if missing)")
     t.add_argument("--json", action="store_true", help="Print JSON with confidence scores")
+    t.add_argument("--ocr-only", action="store_true",
+                   help="Images: only write the OCR text (<image>.ocr.txt) so you can correct it, then translate that")
     t.add_argument("--show-confidence", action="store_true", help="Print the lowest confidence to stderr")
     t.add_argument("--memory", action="append", default=[],
                    help="Translation memory file (TSV: source_lang, target_lang, source, translation); repeatable")
+    t.add_argument("--glossary", action="append", default=[],
+                   help="Glossary file (TSV: source_lang, target_lang, term, translation): keeps terms "
+                        "consistent across the document; repeatable")
     t.set_defaults(func=_cmd_translate)
 
     s = sub.add_parser("serve", help="Run the REST API server")
@@ -244,6 +293,19 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("cards", nargs="*", help="Card ids, e.g. opus:tr-en madlad gemma lid checker")
     c.set_defaults(func=_cmd_cards)
 
+    o = sub.add_parser("ottoman", help="Experimental: OCR a printed Ottoman Turkish page (Arabic script)")
+    o.add_argument("image", help="Page image (or a single line image with --line)")
+    o.add_argument("--line", action="store_true", help="The image is already one text line")
+    o.add_argument("--output", "-o", help="Write the text here (default: <image>.ota.txt)")
+    o.add_argument("--json", action="store_true", help="Print lines with boxes and review flags as JSON")
+    o.set_defaults(func=_cmd_ottoman)
+
+    sg = sub.add_parser("signs", help="Experimental: list Egyptian hieroglyph (Gardiner) or cuneiform sign codes "
+                                      "in Unicode text - not a reading or translation")
+    sg.add_argument("text", nargs="+", help="Unicode hieroglyph or cuneiform text")
+    sg.add_argument("--json", action="store_true", help="One entry per sign with code point and kind")
+    sg.set_defaults(func=_cmd_signs)
+
     lang = sub.add_parser("languages", help="List core language codes (--all: every language installed cards cover)")
     lang.add_argument("--all", action="store_true", help="Every language any installed card covers, with the cards")
     lang.set_defaults(func=_cmd_languages)
@@ -263,9 +325,16 @@ def _safe_console() -> None:
 def main(argv: Optional[List[str]] = None) -> int:
     _safe_console()
     args = build_parser().parse_args(argv)
+    from . import profiles
+    if args.profile:
+        os.environ["GLYPHBRIDGE_PROFILE"] = args.profile
+    profiles.apply_from_env()
     if getattr(args, "memory", None):
         existing = [p for p in os.environ.get("GLYPHBRIDGE_MEMORY", "").split(os.pathsep) if p]
         os.environ["GLYPHBRIDGE_MEMORY"] = os.pathsep.join(existing + args.memory)
+    if getattr(args, "glossary", None):
+        existing = [p for p in os.environ.get("GLYPHBRIDGE_GLOSSARY", "").split(os.pathsep) if p]
+        os.environ["GLYPHBRIDGE_GLOSSARY"] = os.pathsep.join(existing + args.glossary)
     return args.func(args)
 
 
