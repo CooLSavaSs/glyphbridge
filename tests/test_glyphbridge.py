@@ -595,6 +595,7 @@ def test_opus_offline_only_considers_installed_pairs(monkeypatch):
     from glyphbridge import backends as bk
     monkeypatch.setenv("GLYPHBRIDGE_OFFLINE", "1")
     monkeypatch.setattr(bk, "_cached_repos", lambda: {"Helsinki-NLP/opus-mt-tr-en"})
+    monkeypatch.setattr(bk, "has_transformers", lambda: True)  # CI unit tests run without PyTorch
     tried = []
     b = bk.OpusBackend(bk.ModelCache(budget_mb=100000))
     b._load_named = lambda name: tried.append(name) or ("tok", "model")
@@ -611,6 +612,7 @@ def test_opus_supports_never_loads_a_model(monkeypatch):
     hub = {"Helsinki-NLP/opus-mt-tc-big-en-tr", "Helsinki-NLP/opus-mt-de-en"}
     asked = []
     monkeypatch.setattr(bk, "repo_exists", lambda n: asked.append(n) or n in hub)
+    monkeypatch.setattr(bk, "has_transformers", lambda: True)
     b = bk.OpusBackend(bk.ModelCache(budget_mb=100000))
     b._load_named = lambda name: pytest.fail("supports() must not load " + name)
     assert b.supports("en", "tr") and b.supports("de", "en")
@@ -650,7 +652,7 @@ def test_base_install_is_light():
 
 def test_repo_exists_offline_hub_means_false(monkeypatch):
     from glyphbridge import backends as bk
-    import huggingface_hub
+    huggingface_hub = pytest.importorskip("huggingface_hub")
     monkeypatch.setattr(bk, "_REPO_EXISTS", {})
 
     def down(self, name):
@@ -1199,6 +1201,7 @@ def test_cli_profile_flag(monkeypatch):
 
 
 def test_card_install_skips_unused_weight_formats():
+    pytest.importorskip("huggingface_hub")
     from huggingface_hub.utils import filter_repo_objects
     from glyphbridge.cards import IGNORE_PATTERNS
     labse = ["model.safetensors", "pytorch_model.bin", "tf_model.h5", "flax_model.msgpack", "onnx/model.onnx",
@@ -1273,6 +1276,7 @@ def test_camera_page_draws_on_canvas_only(eng):
 
 
 def test_profiles_bench_table_and_child(monkeypatch, tmp_path):
+    pytest.importorskip("psutil")
     import importlib.util
     import sys
     import types
