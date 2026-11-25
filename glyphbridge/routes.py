@@ -32,13 +32,26 @@ ROUTES: Dict[str, Tuple[List[str], str]] = {
     "en-zh": (["hymt2-q4", "opus"], "hymt2-q4 50.6 > opus 39.0"),
     "fa-en": (["gemma-q4", "hymt2-q4", "madlad-int8"], "gemma-q4 88.0 > hymt2-q4 86.9 > madlad-int8 66.0 (CI #103)"),
     "ja-en": (["hymt2-q4", "opus"], "hymt2-q4 92.5 > opus 81.7"),
-    "ko-en": (["hymt2-q4", "gemma-q4", "opus"], "hymt2-q4 84.3 > gemma-q4 72.7 > opus (tc-big broken) 1.0"),
+    "ko-en": (["madlad-int8", "gemma-q4", "hymt2-q4"],
+              "FLORES madlad-int8 58.8 > gemma-q4 57.6 > hymt2-q4 55.7 (golden-v3 had hymt2-q4 84.3 on 9 "
+              "hand-written sentences; FLORES human references win)"),
     "hi-en": (["gemma-q4", "hymt2-q4", "opus"], "gemma-q4 88.1 > hymt2-q4 78.1 > opus 66.7 (CI #103)"),
     "sw-en": (["gemma-q4", "madlad-int8"], "gemma-q4 92.0 > madlad-int8 70.7; no Opus-MT, no Hy-MT2 (CI #103)"),
     "el-en": (["gemma-q4", "madlad-int8"], "gemma-q4 86.7 > madlad-int8 79.2; Opus tc-big broken (CI #103)"),
+    # FLORES-200 devtest, 20 sentences, X->en (runs 45531772163 / 45539184900 / 45539189069).
+    # A card moves ahead only when it beats the current first card by >= 3 chrF.
+    "bo-en": (["madlad-int8", "hymt2-q4"], "FLORES madlad-int8 38.8 > hymt2-q4 32.2"),
+    "mn-en": (["madlad-int8", "hymt2-q4"], "FLORES madlad-int8 58.5 > hymt2-q4 32.5"),
+    "kk-en": (["madlad-int8", "hymt2-q4"], "FLORES madlad-int8 59.1 > hymt2-q4 42.9"),
+    "ug-en": (["madlad-int8", "hymt2-q4"], "FLORES madlad-int8 54.0 > hymt2-q4 47.5"),
+    "ta-en": (["madlad-int8", "gemma-q4", "hymt2-q4"], "FLORES madlad-int8 60.1 > gemma-q4 56.3 > hymt2-q4 54.1"),
+    "te-en": (["madlad-int8", "gemma-q4", "hymt2-q4"], "FLORES madlad-int8 64.4 > gemma-q4 58.6 > hymt2-q4 57.2"),
+    "km-en": (["madlad-int8", "hymt2-q4"], "FLORES madlad-int8 64.0 > hymt2-q4 59.9"),
+    "zu-en": (["madlad-int8", "gemma-q4"], "FLORES madlad-int8 61.7 > gemma-q4 45.3"),
+    "ur-en": (["madlad-int8", "gemma-q4", "hymt2-q4"], "FLORES madlad-int8 63.2 > gemma-q4 59.7 > chain 58.3"),
 }
 
-VERSION = "golden-v3-ci103"
+VERSION = "flores-v1"
 
 
 def enabled() -> bool:
