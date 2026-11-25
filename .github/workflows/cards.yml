@@ -121,7 +121,8 @@ jobs:
   small-8gb:
     name: 8 GB cards (MADLAD int8, TranslateGemma 4-bit)
     runs-on: ubuntu-latest
-    needs: gemma-full
+    needs: [small-cards, madlad, gemma-full]
+    if: ${{ always() && needs.small-cards.result == 'success' && needs.madlad.result == 'success' && (needs.gemma-full.result == 'success' || needs.gemma-full.result == 'skipped') }}
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
