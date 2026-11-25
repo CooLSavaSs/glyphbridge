@@ -26,9 +26,11 @@ on:
         description: "1 = context window on (LLM cards see the preceding sentence; FLORES sentences are consecutive), compare with a run at 0"
         default: "0"
 
+# Share the heavyweight-model lock with Cards and CI smoke tests.
+# This prevents simultaneous multi-GB model downloads and inference jobs.
 concurrency:
-  group: flores-${{ github.ref }}-${{ inputs.backends }}-${{ inputs.langs }}-${{ inputs.direction }}-${{ inputs.sentences }}-${{ inputs.context }}
-  cancel-in-progress: true
+  group: glyphbridge-heavy-models
+  cancel-in-progress: false
 
 jobs:
   flores:
