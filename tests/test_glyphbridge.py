@@ -109,6 +109,46 @@ def test_auto_detect(eng, monkeypatch):
     assert eng.translate("Merhaba dünya", target="en").source == "tr"
 
 
+LONG_TR = "Bugün hava çok güzel ve parkta yürüyüş yaptık."
+LONG_LA = "Gallia est omnis divisa in partes tres quarum unam."
+
+
+def _fake_lid(text):
+    # Whole-document detection sees mostly Turkish; per-segment detection sees the truth.
+    if text == LONG_LA:
+        return "la"
+    return "tr"
+
+
+def test_mixed_language_document_detected_per_segment(monkeypatch):
+    calls = []
+    monkeypatch.setattr(engine_mod.lid, "detect", lambda t: calls.append(t) or _fake_lid(t))
+    back = FakeBackend("m", {("tr", "en"): {LONG_TR: "Nice weather."}, ("la", "en"): {LONG_LA: "All Gaul."}})
+    e = Engine(backends=[back], checker=FakeChecker())
+    rs = e.translate_batch([LONG_TR, LONG_LA, LONG_TR], target="en")
+    assert [r.source for r in rs] == ["tr", "la", "tr"]
+    assert [r.translation for r in rs] == ["Nice weather.", "All Gaul.", "Nice weather."]
+
+
+def test_short_segment_takes_document_language(monkeypatch):
+    seen = []
+
+    def lid(text):
+        seen.append(text)
+        return None if text == "OK" else "tr"
+    monkeypatch.setattr(engine_mod.lid, "detect", lid)
+    assert engine_mod.detect_each([LONG_TR, "OK"]) == ["tr", "tr"]
+    assert "OK" not in seen  # too short to detect on its own; whole-input language is used
+
+
+def test_segment_in_target_language_is_left_as_is(monkeypatch):
+    long_en = "The weather is lovely today and we walked in the park."
+    monkeypatch.setattr(engine_mod.lid, "detect", lambda t: "en" if t == long_en else "tr")
+    back = FakeBackend("m", {("tr", "en"): {LONG_TR: "Nice weather."}})
+    rs = Engine(backends=[back], checker=FakeChecker()).translate_batch([LONG_TR, long_en], target="en")
+    assert rs[1].translation == long_en and rs[1].model == "identity"
+
+
 def test_model_cache_respects_ram_budget():
     cache = ModelCache(budget_mb=1000, max_models=5)
     cache.get("a", lambda: "A", 600)
@@ -218,12 +258,68 @@ def test_text_file_with_output(eng, tmp_path, capsys):
 
 def test_image_ocr_path(eng, tmp_path, monkeypatch):
     from glyphbridge import documents
-    monkeypatch.setattr(documents, "ocr_image", lambda path, source="auto": "Merhaba dünya\n")
+    monkeypatch.setattr(documents, "ocr_regions", lambda path, source="auto": [
+        {"text": "Merhaba dünya", "box": (10, 5, 200, 30), "ocr_confidence": 0.91},
+        {"text": "Nasılsın?", "box": (10, 40, 120, 60), "ocr_confidence": 0.42}])
     img = tmp_path / "photo.png"
     img.write_bytes(b"")
     out, results = documents.translate_file(str(img), target="en", source="tr")
     assert out.endswith("photo.en.txt")
     assert open(out, encoding="utf-8").read().startswith("Hello world")
+    assert [r.ocr_confidence for r in results] == [0.91, 0.42]
+    # A sure translation of an unsure OCR line still needs a person to look at it.
+    assert [r.expert_review_required for r in results] == [False, True]
+    assert results[0].box == (10, 5, 200, 30) and results[0].to_dict()["box"] == (10, 5, 200, 30)
+    assert documents.RETAKE_HINT in results[1].issues and documents.RETAKE_HINT not in results[0].issues
+
+
+def test_ocr_lines_groups_words_and_averages_confidence(monkeypatch):
+    import sys
+    import types
+    from glyphbridge import documents
+    data = {"text": ["Merhaba", "dünya", "", "Nasılsın?"], "conf": [90, 80, -1, -1],
+            "block_num": [1, 1, 1, 1], "par_num": [1, 1, 1, 1], "line_num": [1, 1, 1, 2],
+            "left": [10, 80, 0, 12], "top": [5, 6, 0, 40], "width": [60, 50, 0, 90], "height": [20, 22, 0, 18]}
+    fake = types.SimpleNamespace(image_to_data=lambda img, lang, output_type: data,
+                                 get_languages=lambda config="": ["tur"], Output=types.SimpleNamespace(DICT="dict"))
+    pil = types.ModuleType("PIL")
+    pil.Image = types.SimpleNamespace(open=lambda p: object())
+    monkeypatch.setitem(sys.modules, "pytesseract", fake)
+    monkeypatch.setitem(sys.modules, "PIL", pil)
+    assert documents.ocr_lines("x.png", "tr") == [("Merhaba dünya", 0.85), ("Nasılsın?", None)]
+    assert [g["box"] for g in documents.ocr_regions("x.png", "tr")] == [(10, 5, 130, 28), (12, 40, 102, 58)]
+
+
+def test_separate_confidence_fields(eng):
+    r = eng.translate("Merhaba dünya", target="en", source="tr")
+    d = r.to_dict()
+    assert d["detected_script"] == "Latn"
+    assert d["translation_confidence"] == 0.9 and d["similarity"] == 0.95
+    assert d["ocr_confidence"] is None and d["consistency_issues"] == []
+    assert d["expert_review_required"] is False
+
+
+def test_flagged_result_requires_expert_review(monkeypatch):
+    e = Engine(backends=[OPUS], checker=FakeChecker())
+    r = e.translate("Zor cümle", target="en", source="tr")
+    assert r.flagged and r.expert_review_required
+
+
+def test_low_probability_without_checker_requires_review():
+    low = FakeBackend("opus", {("tr", "en"): {"Merhaba dünya": "Hello world"}}, prob=0.3)
+    r = Engine(backends=[low], checker=FakeChecker(enabled=False)).translate("Merhaba dünya", target="en", source="tr")
+    assert r.translation_confidence == 0.3 and r.expert_review_required
+
+
+def test_detect_script():
+    from glyphbridge.engine import detect_script
+    assert detect_script("Hello") == "Latn"
+    assert detect_script("مرحبا") == "Arab"
+    assert detect_script("Привет") == "Cyrl"
+    assert detect_script("你好") == "Hani"
+    assert detect_script("𓀀𓀁") == "Egyp"
+    assert detect_script("𒀀𒀁") == "Xsux"
+    assert detect_script("123 !") is None
 
 
 def test_audio_translation(eng, tmp_path, monkeypatch, capsys):
@@ -502,9 +598,65 @@ def test_opus_offline_only_considers_installed_pairs(monkeypatch):
     tried = []
     b = bk.OpusBackend(bk.ModelCache(budget_mb=100000))
     b._load_named = lambda name: tried.append(name) or ("tok", "model")
-    assert b.supports("tr", "en") and tried == ["Helsinki-NLP/opus-mt-tr-en"]
+    assert b.supports("tr", "en") and tried == []  # answered without loading
+    assert b._model_for("tr", "en")[0] == "Helsinki-NLP/opus-mt-tr-en" and tried == ["Helsinki-NLP/opus-mt-tr-en"]
     tried.clear()
     assert not b.supports("la", "en") and tried == []
+
+
+def test_opus_supports_never_loads_a_model(monkeypatch):
+    from glyphbridge import backends as bk
+    monkeypatch.delenv("GLYPHBRIDGE_OFFLINE", raising=False)
+    monkeypatch.setattr(bk, "_cached_repos", lambda: set())
+    hub = {"Helsinki-NLP/opus-mt-tc-big-en-tr", "Helsinki-NLP/opus-mt-de-en"}
+    asked = []
+    monkeypatch.setattr(bk, "repo_exists", lambda n: asked.append(n) or n in hub)
+    b = bk.OpusBackend(bk.ModelCache(budget_mb=100000))
+    b._load_named = lambda name: pytest.fail("supports() must not load " + name)
+    assert b.supports("en", "tr") and b.supports("de", "en")
+    assert not b.supports("xx", "en")
+    assert "Helsinki-NLP/opus-mt-tc-big-de-en" in asked  # tc-big tried first, then the base model
+
+
+def test_opus_supports_skips_models_that_failed_to_load(monkeypatch):
+    from glyphbridge import backends as bk
+    monkeypatch.setattr(bk, "_cached_repos", lambda: {"Helsinki-NLP/opus-mt-tr-en"})
+    cache = bk.ModelCache(budget_mb=100000)
+    b = bk.OpusBackend(cache)
+
+    def boom():
+        raise bk.BackendUnavailable("corrupt")
+    cache.get("Helsinki-NLP/opus-mt-tr-en", boom)
+    monkeypatch.setattr(bk, "repo_exists", lambda n: False)
+    assert not b.supports("tr", "en")
+
+
+def test_opus_unsupported_without_pytorch_extra(monkeypatch):
+    from glyphbridge import backends as bk
+    monkeypatch.setattr(bk, "has_transformers", lambda: False)
+    monkeypatch.setattr(bk, "_cached_repos", lambda: {"Helsinki-NLP/opus-mt-tr-en"})
+    assert not bk.OpusBackend(bk.ModelCache(budget_mb=100000)).supports("tr", "en")
+
+
+def test_base_install_is_light():
+    import re
+    from pathlib import Path
+    text = Path(__file__).resolve().parents[1].joinpath("pyproject.toml").read_text(encoding="utf-8")
+    base = re.search(r"^dependencies = \[(.*?)\]", text, re.S | re.M).group(1)
+    assert "torch" not in base and "transformers" not in base
+    assert re.search(r'^transformers = \[.*"torch', text, re.M)
+    assert re.search(r'^8gb = \[.*small', text, re.M)
+
+
+def test_repo_exists_offline_hub_means_false(monkeypatch):
+    from glyphbridge import backends as bk
+    import huggingface_hub
+    monkeypatch.setattr(bk, "_REPO_EXISTS", {})
+
+    def down(self, name):
+        raise OSError("no network")
+    monkeypatch.setattr(huggingface_hub.HfApi, "repo_exists", down)
+    assert bk.repo_exists("Helsinki-NLP/opus-mt-tr-en") is False
 
 
 def test_consistency_findings_from_gemma_golden_run():
@@ -871,3 +1023,337 @@ def test_loaded_cards_count_as_freeable_ram(monkeypatch):
                         (["madlad-int8", "hymt2-q4"], "test"))
     # 5500 MB fits once the 4000 MB already loaded can be unloaded: the measured-best card goes first.
     assert [r[0][0].name for r in e.candidates("tr", "en")][:2] == ["madlad-int8", "hymt2-q4"]
+
+
+# --- Ottoman Turkish OCR pipeline (ota-ocr card faked) ---------------------------------
+def _fake_page():
+    from PIL import Image, ImageDraw
+    img = Image.new("L", (400, 200), 255)
+    d = ImageDraw.Draw(img)
+    for top in (20, 80, 140):
+        d.rectangle((60, top, 340, top + 20), fill=0)       # a line of "letters"
+        d.rectangle((100, top - 5, 104, top - 3), fill=0)    # dots above, 2 blank rows away
+    d.point((5, 190), fill=0)                                # a speck of noise
+    return img
+
+
+def test_segment_lines_finds_printed_lines():
+    from glyphbridge import ottoman
+    boxes = ottoman.segment_lines(_fake_page())
+    assert len(boxes) == 3
+    tops = [b[1] for b in boxes]
+    assert tops == sorted(tops)
+    for (left, top, right, bottom), line_top in zip(boxes, (20, 80, 140)):
+        assert top <= line_top - 5 and bottom >= line_top + 20   # dots kept with their line
+        assert 50 <= left <= 60 and 340 <= right <= 350
+
+
+def test_read_page_marks_every_line_for_review(tmp_path):
+    from glyphbridge import ottoman
+    page = tmp_path / "page.png"
+    _fake_page().save(page)
+    texts = iter(["هلاک ایدر ازایسه", "", "Hello"])
+    lines = ottoman.read_page(str(page), reader=lambda img: next(texts))
+    assert [line.text for line in lines] == ["هلاک ایدر ازایسه", "", "Hello"]
+    assert all(line.expert_review_required for line in lines)
+    assert lines[0].detected_script == "Arab" and lines[0].notes == []
+    assert lines[1].notes == ["empty OCR output"]
+    assert "not in Arabic script" in lines[2].notes[0]
+
+
+def test_azra_prepare_rounds_to_64():
+    from PIL import Image
+    from glyphbridge.ottoman import AzraOCR
+    assert AzraOCR.prepare(Image.new("L", (130, 40))).size == (192, 64)
+    assert AzraOCR.prepare(Image.new("RGB", (128, 64))).size == (128, 64)
+
+
+def test_ota_ocr_card_is_pinned_apache_and_skips_samples():
+    from glyphbridge.cards import ALLOW_PATTERNS, CARDS
+    c = CARDS["ota-ocr"]
+    assert c.license == "Apache-2.0" and len(c.revision) == 40
+    assert dict(c.sha256)["model.safetensors"].startswith("dc497f9b")
+    assert "model.safetensors" in ALLOW_PATTERNS["ota-ocr"] and not any("png" in p for p in ALLOW_PATTERNS["ota-ocr"])
+
+
+def test_cli_ottoman(tmp_path, monkeypatch, capsys):
+    from glyphbridge import ottoman
+    page = tmp_path / "page.png"
+    _fake_page().save(page)
+    monkeypatch.setattr(ottoman.AzraOCR, "read_line", lambda self, img: "اغزی محکم باغلنوب")
+    assert cli.main(["ottoman", str(page), "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert len(data["lines"]) == 3 and data["output"].endswith("page.ota.txt")
+    assert (tmp_path / "page.ota.txt").read_text(encoding="utf-8").count("\n") == 2
+
+
+# --- Glossary: term consistency across a document -------------------------------------
+def _glossary(tmp_path, rows):
+    from glyphbridge.glossary import Glossary
+    f = tmp_path / "glossary.tsv"
+    f.write_text("# src\ttgt\tterm\ttranslation\n" + "".join("\t".join(r) + "\n" for r in rows), encoding="utf-8")
+    return Glossary([str(f)])
+
+
+def test_glossary_matches_suffixes_case_and_turkish_i(tmp_path):
+    g = _glossary(tmp_path, [("tr", "en", "Belediye", "Municipality"), ("tr", "en", "İstanbul Boğazı", "Bosphorus")])
+    assert g.check("Belediye'ye gittik.", "We went to the municipality.", "tr", "en") == []
+    assert g.check("BELEDİYELER toplandı.", "The town halls met.", "tr", "en") == ["glossary: 'Belediye' should be 'Municipality'"]
+    assert g.check("istanbul boğazında", "on the Bosphorus", "tr", "en") == []
+    assert g.check("Hiçbir terim yok.", "No term.", "tr", "en") == []
+    assert g.check("Belediye", "Parliament", "en", "tr") == []  # other direction: no entries
+
+
+def test_glossary_sends_sentence_to_next_card_then_flags(tmp_path):
+    g = _glossary(tmp_path, [("tr", "en", "Belediye", "Municipality")])
+    first = FakeBackend("opus", {("tr", "en"): {"Belediye toplandı.": "The town hall met."}})
+    second = FakeBackend("madlad", {("tr", "en"): {"Belediye toplandı.": "The Municipality met."}}, prob=0.8)
+    r = Engine(backends=[first, second], checker=FakeChecker(), glossary=g).translate(
+        "Belediye toplandı.", target="en", source="tr")
+    assert r.translation == "The Municipality met." and not r.flagged
+    only = Engine(backends=[first], checker=FakeChecker(), glossary=g).translate("Belediye toplandı.", target="en", source="tr")
+    assert only.flagged and only.expert_review_required
+    assert only.consistency_issues == ["glossary: 'Belediye' should be 'Municipality'"]
+
+
+def test_glossary_bad_file(tmp_path):
+    from glyphbridge.glossary import Glossary
+    f = tmp_path / "g.tsv"
+    f.write_text("tr\ten\tonly three\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        Glossary([str(f)])
+
+
+def test_cli_glossary_flag_sets_env(monkeypatch, tmp_path):
+    import os
+    monkeypatch.delenv("GLYPHBRIDGE_GLOSSARY", raising=False)
+    g = tmp_path / "g.tsv"
+    g.write_text("", encoding="utf-8")
+    monkeypatch.setattr(cli, "_cmd_translate", lambda args: 0)
+    assert cli.main(["translate", "x", "--to", "en", "--glossary", str(g)]) == 0
+    assert os.environ["GLYPHBRIDGE_GLOSSARY"] == str(g)
+    monkeypatch.delenv("GLYPHBRIDGE_GLOSSARY")
+
+
+# --- FLORES script: both directions (no download: reader and scorer faked) ------------
+def _flores():
+    import importlib.util
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "scripts" / "flores.py"
+    spec = importlib.util.spec_from_file_location("flores_script", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class _EchoEngine:
+    def __init__(self):
+        self.calls = []
+
+    def translate_batch(self, texts, target, source):
+        self.calls.append((source, target, list(texts)))
+        if source == "wo" or target == "wo":
+            raise TranslationError("no card")
+        return [engine_mod.TranslationResult(t, source, target, 0.9, "fake:x") for t in texts]
+
+
+def test_flores_both_directions():
+    fl = _flores()
+    data = {"eng_Latn": ["Hello", "World"], "tur_Latn": ["Merhaba", "Dünya"], "wol_Latn": ["Salaam", "Adduna"]}
+    read = lambda code, n: data[code][:n]
+    eng = _EchoEngine()
+    rows, rep = fl.evaluate(eng, ["tur_Latn", "wol_Latn"], 2, "en-x", read,
+                            chrf_fn=lambda hyp, ref: 100.0 if hyp == ref else 0.0, log=lambda *_: None)
+    assert eng.calls[0] == ("en", "tr", ["Hello", "World"])
+    assert rep["tur_Latn"]["chrf"] == 0.0           # echo of English scored against Turkish
+    assert "error" in rep["wol_Latn"] and rows[1].count("|") == rows[0].count("|")
+    eng = _EchoEngine()
+    rows, rep = fl.evaluate(eng, ["tur_Latn"], 2, "x-en", read,
+                            chrf_fn=lambda hyp, ref: 100.0 if hyp == ["Merhaba", "Dünya"] and ref == ["Hello", "World"] else 0.0,
+                            log=lambda *_: None)
+    assert eng.calls[0] == ("tr", "en", ["Merhaba", "Dünya"]) and rep["tur_Latn"]["chrf"] == 100.0
+
+
+# --- Speed profiles -------------------------------------------------------------------
+def test_profile_fills_only_unset_settings():
+    from glyphbridge import profiles
+    env = {"GLYPHBRIDGE_BACKENDS": "hymt2-q4"}
+    applied = profiles.apply("fast", env)
+    assert env["GLYPHBRIDGE_BACKENDS"] == "hymt2-q4"          # the user's own choice wins
+    assert env["GLYPHBRIDGE_DISABLE_CHECKER"] == "1" and "GLYPHBRIDGE_BACKENDS" not in applied
+    assert profiles.apply("balanced", {}) == {}
+    assert profiles.apply("low-ram", {})["GLYPHBRIDGE_MAX_MODELS"] == "1"
+    with pytest.raises(ValueError):
+        profiles.apply("turbo", {})
+
+
+def test_cli_profile_flag(monkeypatch):
+    import os
+    for k in ("GLYPHBRIDGE_PROFILE", "GLYPHBRIDGE_PREFER"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setattr(cli, "_cmd_translate", lambda args: 0)
+    assert cli.main(["--profile", "quality", "translate", "x", "--to", "en"]) == 0
+    assert os.environ["GLYPHBRIDGE_PREFER"] == "quality"
+    monkeypatch.delenv("GLYPHBRIDGE_PREFER")
+    monkeypatch.delenv("GLYPHBRIDGE_PROFILE")
+
+
+def test_card_install_skips_unused_weight_formats():
+    from huggingface_hub.utils import filter_repo_objects
+    from glyphbridge.cards import IGNORE_PATTERNS
+    labse = ["model.safetensors", "pytorch_model.bin", "tf_model.h5", "flax_model.msgpack", "onnx/model.onnx",
+             "2_Dense/pytorch_model.bin", "2_Dense/model.safetensors", "modules.json", "1_Pooling/config.json"]
+    kept = set(filter_repo_objects(labse, ignore_patterns=IGNORE_PATTERNS["checker"]))
+    assert kept == {"model.safetensors", "2_Dense/pytorch_model.bin", "2_Dense/model.safetensors",
+                    "modules.json", "1_Pooling/config.json"}
+    glot = ["model.bin", "model_v1.bin", "model_v4.bin", "model_v4_small.ftz", "config.json"]
+    assert set(filter_repo_objects(glot, ignore_patterns=IGNORE_PATTERNS["lid"])) == {"model.bin", "config.json"}
+
+
+def test_card_install_passes_patterns(monkeypatch):
+    import sys
+    import types
+    from glyphbridge import cards
+    seen = {}
+    hub = types.SimpleNamespace(snapshot_download=lambda repo, **kw: seen.update(kw) or "/p",
+                                hf_hub_download=None, scan_cache_dir=None)
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+    monkeypatch.setattr(cards, "verify", lambda cid: [])
+    cards.install("whisper")
+    assert "pytorch_model.bin" in seen["ignore_patterns"] and seen["allow_patterns"] is None
+
+
+def test_cli_ocr_only_writes_editable_text(tmp_path, monkeypatch, capsys):
+    from glyphbridge import documents
+    monkeypatch.setattr(documents, "ocr_regions", lambda path, source="auto": [
+        {"text": "Merhaba dünya", "box": (0, 0, 9, 9), "ocr_confidence": 0.9}])
+    img = tmp_path / "photo.png"
+    img.write_bytes(b"")
+    assert cli.main(["translate", "--file", str(img), "--ocr-only"]) == 0
+    assert (tmp_path / "photo.ocr.txt").read_text(encoding="utf-8") == "Merhaba dünya"
+    assert "Correct the text" in capsys.readouterr().err
+
+
+# --- Live camera: /v1/photo and /camera ----------------------------------------------
+def _png_b64():
+    import base64
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 20), "white").save(buf, "PNG")
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def test_photo_endpoint_returns_boxes(eng, monkeypatch):
+    from glyphbridge import documents
+    monkeypatch.setattr(documents, "ocr_regions", lambda path, source="auto": [
+        {"text": "Merhaba dünya", "box": (1, 2, 30, 12), "ocr_confidence": 0.9}])
+    client = TestClient(create_app(engine=eng, api_key="k"))
+    body = {"image": "data:image/png;base64," + _png_b64(), "source": "tr", "target": "en"}
+    assert client.post("/v1/photo", json=body).status_code == 401
+    r = client.post("/v1/photo", json=body, headers={"Authorization": "Bearer k"})
+    assert r.status_code == 200
+    line = r.json()["lines"][0]
+    assert line["translation"] == "Hello world" and line["box"] == [1, 2, 30, 12]
+
+
+def test_photo_endpoint_rejects_bad_input(eng):
+    from glyphbridge import server
+    client = TestClient(create_app(engine=eng))
+    assert client.post("/v1/photo", json={"image": "not base64!!", "target": "en"}).status_code == 422
+    big = "A" * (server.MAX_PHOTO_BYTES * 4 // 3 + 100)
+    assert client.post("/v1/photo", json={"image": big, "target": "en"}).status_code == 413
+
+
+def test_camera_page_draws_on_canvas_only(eng):
+    client = TestClient(create_app(engine=eng))
+    r = client.get("/camera")
+    assert r.status_code == 200 and "getUserMedia" in r.text and "/v1/photo" in r.text
+    assert "innerHTML" not in r.text  # OCR/translation text is never inserted as HTML
+
+
+def test_profiles_bench_table_and_child(monkeypatch, tmp_path):
+    import importlib.util
+    import sys
+    import types
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    spec = importlib.util.spec_from_file_location("profiles_bench", root / "scripts" / "profiles_bench.py")
+    pb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pb)
+    rows = [{"profile": "fast", "sentences": 2, "first_s": 1.0, "per_sentence_s": 0.2, "peak_ram_mb": 900,
+             "chrf": 70.1, "flagged": 0}, {"profile": "quality", "error": "No backend could translate"}]
+    t = pb.table(rows)
+    assert "| fast | 2 | 1.0 | 0.2 | 900 | **70.1** | 0 |" in t and "error: No backend" in t
+    golden = tmp_path / "tr-en.tsv"
+    golden.write_text("general\tMerhaba dünya\tHello world\ngeneral\tNasılsın?\tHow are you?\n", encoding="utf-8")
+    monkeypatch.setitem(sys.modules, "sacrebleu", types.SimpleNamespace(
+        corpus_chrf=lambda h, r: types.SimpleNamespace(score=100.0 if h == r[0] else 0.0)))
+    monkeypatch.setattr(engine_mod, "Engine", lambda: Engine(backends=[OPUS], checker=FakeChecker()))
+    monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
+    res = pb.child("balanced", [str(golden)])
+    assert res["sentences"] == 2 and res["chrf"] == 100.0 and res["peak_ram_mb"] > 0
+    monkeypatch.delenv("GLYPHBRIDGE_PROFILE", raising=False)
+
+
+# --- Context window (opt-in) ------------------------------------------------------------
+def test_context_off_keeps_measured_prompts(monkeypatch):
+    from glyphbridge import backends as bk
+    monkeypatch.delenv("GLYPHBRIDGE_CONTEXT", raising=False)
+    bk.set_context({"B": "A"})
+    try:
+        assert bk.CONTEXT_HINT not in bk.gemma_prompt("B", "tr", "en")
+        assert bk.CONTEXT_HINT not in bk.HyMT2Q4Backend.prompt("B", "en")
+    finally:
+        bk.set_context({})
+
+
+def test_context_on_adds_preceding_paragraph(monkeypatch):
+    from glyphbridge import backends as bk
+    monkeypatch.setenv("GLYPHBRIDGE_CONTEXT", "1")
+    bk.set_context({"O geldi.": "Ayşe kapıyı açtı."})
+    try:
+        p = bk.gemma_prompt("O geldi.", "tr", "en")
+        assert bk.CONTEXT_HINT in p and "Ayşe kapıyı açtı." in p
+        assert p.index("Ayşe kapıyı açtı.") < p.rindex("O geldi.")  # context first, then the text
+        assert "Ayşe kapıyı açtı." in bk.HyMT2Q4Backend.prompt("O geldi.", "en")
+    finally:
+        bk.set_context({})
+
+
+class _ContextSpy(Backend):
+    name = "spy"
+
+    def __init__(self):
+        self.seen = []
+
+    def supports(self, s, t):
+        return True
+
+    def translate(self, texts, s, t):
+        from glyphbridge import backends as bk
+        self.seen += [(x, bk.context_for(x)) for x in texts]
+        return [(x.upper(), 0.9) for x in texts]
+
+
+def test_engine_passes_context_and_keys_cache_by_it(monkeypatch):
+    monkeypatch.setenv("GLYPHBRIDGE_CONTEXT", "1")
+    spy = _ContextSpy()
+    e = Engine(backends=[spy], checker=FakeChecker())
+    e.translate_batch(["Ayşe kapıyı açtı.", "O geldi."], target="en", source="tr")
+    assert ("O geldi.", "Ayşe kapıyı açtı.") in spy.seen and ("Ayşe kapıyı açtı.", "") in spy.seen
+    e.translate_batch(["Ali pencereyi kapadı.", "O geldi."], target="en", source="tr")
+    assert ("O geldi.", "Ali pencereyi kapadı.") in spy.seen  # new context -> not a cache hit
+    from glyphbridge import backends as bk
+    assert bk.context_for("O geldi.") == ""  # cleared after the batch
+
+
+def test_opus_install_skips_tensorflow_copy(monkeypatch):
+    import sys
+    import types
+    from glyphbridge import cards
+    seen = {}
+    hub = types.SimpleNamespace(snapshot_download=lambda repo, **kw: seen.update(repo=repo, **kw) or "/p")
+    monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
+    cards.install("opus:yo-en")
+    assert "tf_model.h5" in seen["ignore_patterns"]

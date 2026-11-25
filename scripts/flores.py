@@ -1,6 +1,8 @@
-"""Measure X -> English quality on FLORES-200 devtest (human translations, CC-BY-SA 4.0).
+"""Measure quality on FLORES-200 devtest (human translations, CC-BY-SA 4.0), X -> English
+or English -> X.
 
     python scripts/flores.py --sentences 20 --json flores.json
+    python scripts/flores.py --direction en-x --sentences 100
     python scripts/flores.py --langs yor_Latn hau_Latn --sentences 50
 
 The official archive is downloaded once from Meta's server into ~/.cache/glyphbridge
@@ -54,44 +56,65 @@ def read(tar: tarfile.TarFile, code: str, n: int):
         return [fh.readline().decode("utf-8").rstrip("\n") for _ in range(n)]
 
 
+def evaluate(engine, langs, n, direction, read_fn, chrf_fn, log=print):
+    """Translate the first ``n`` devtest sentences of every language and score them.
+
+    direction "x-en": the language -> English (reference: English).
+    direction "en-x": English -> the language (reference: that language).
+    Returns (markdown rows, per-language report)."""
+    rows, report = [], {}
+    eng_text = read_fn("eng_Latn", n)
+    for code in langs:
+        iso = LANGS[code]
+        other = read_fn(code, n)
+        src, refs, s_iso, t_iso = ((other, eng_text, iso, "en") if direction == "x-en"
+                                   else (eng_text, other, "en", iso))
+        t0 = time.time()
+        try:
+            res = engine.translate_batch(src, target=t_iso, source=s_iso)
+        except Exception as exc:  # noqa: BLE001 - one missing language must not stop the rest
+            log(f"SKIP {code}: {exc}")
+            rows.append(f"| {code} | {iso} | no card | – | – | – |")
+            report[code] = {"iso": iso, "error": str(exc)}
+            continue
+        chrf = round(chrf_fn([r.translation for r in res], refs), 1)
+        cards = sorted({r.model.split(":")[0] for r in res})
+        secs = round((time.time() - t0) / len(src), 1)
+        flagged = sum(bool(r.flagged) for r in res)
+        rows.append(f"| {code} | {iso} | {', '.join(cards)} | **{chrf}** | {flagged} | {secs} s |")
+        report[code] = {"iso": iso, "chrf": chrf, "cards": cards, "flagged": flagged,
+                        "seconds_per_sentence": secs}
+        log(rows[-1])
+    return rows, report
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--langs", nargs="*", default=list(LANGS))
     ap.add_argument("--sentences", type=int, default=20)
+    ap.add_argument("--direction", choices=["x-en", "en-x"], default="x-en",
+                    help="x-en: each language into English (default); en-x: English into each language")
     ap.add_argument("--json")
     args = ap.parse_args(argv)
+
+    import statistics
 
     import sacrebleu
     from glyphbridge.engine import Engine
 
-    engine = Engine()
-    rows, report = [], {"source": "FLORES-200 devtest", "sentences": args.sentences, "langs": {}}
     with tarfile.open(archive(), "r:gz") as tar:
-        refs = read(tar, "eng_Latn", args.sentences)
-        for code in args.langs:
-            iso = LANGS[code]
-            src = read(tar, code, args.sentences)
-            t0 = time.time()
-            try:
-                res = engine.translate_batch(src, target="en", source=iso)
-            except Exception as exc:  # noqa: BLE001 - one missing language must not stop the rest
-                print(f"SKIP {code}: {exc}", flush=True)
-                rows.append(f"| {code} | {iso} | no card | – | – |")
-                report["langs"][code] = {"iso": iso, "error": str(exc)}
-                continue
-            chrf = round(sacrebleu.corpus_chrf([r.translation for r in res], [refs]).score, 1)
-            cards = sorted({r.model.split(":")[0] for r in res})
-            secs = round((time.time() - t0) / len(src), 1)
-            flagged = sum(bool(r.flagged) for r in res)
-            rows.append(f"| {code} | {iso} | {', '.join(cards)} | **{chrf}** | {flagged} | {secs} s |")
-            report["langs"][code] = {"iso": iso, "chrf": chrf, "cards": cards, "flagged": flagged,
-                                     "seconds_per_sentence": secs}
-            print(rows[-1], flush=True)
-
-    scored = [v["chrf"] for v in report["langs"].values() if "chrf" in v]
-    head = (f"### FLORES-200 devtest, X→English, first {args.sentences} sentences per language\n\n"
+        rows, langs = evaluate(
+            Engine(), args.langs, args.sentences, args.direction,
+            read_fn=lambda code, n: read(tar, code, n),
+            chrf_fn=lambda hyp, ref: sacrebleu.corpus_chrf(hyp, [ref]).score,
+            log=lambda line: print(line, flush=True))
+    report = {"source": "FLORES-200 devtest", "direction": args.direction, "sentences": args.sentences,
+              "langs": langs}
+    scored = [v["chrf"] for v in langs.values() if "chrf" in v]
+    arrow = "X→English" if args.direction == "x-en" else "English→X"
+    head = (f"### FLORES-200 devtest, {arrow}, first {args.sentences} sentences per language\n\n"
             f"{len(scored)} of {len(args.langs)} languages translated; median chrF "
-            f"{sorted(scored)[len(scored) // 2] if scored else '–'}\n\n"
+            f"{round(statistics.median(scored), 1) if scored else '–'}\n\n"
             "| FLORES | code | cards | chrF | flagged | time/sentence |\n|---|---|---|---|---|---|\n")
     table = head + "\n".join(rows)
     print("\n" + table)

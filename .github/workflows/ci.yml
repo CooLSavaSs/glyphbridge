@@ -21,7 +21,7 @@ jobs:
       - name: Install (without the heavy model backend)
         run: |
           pip install --no-deps -e .
-          pip install "fastapi>=0.110" "httpx>=0.27" "pytest>=8"
+          pip install "fastapi>=0.110" "httpx>=0.27" "pytest>=8" "pillow>=10.0"
       - run: pytest -q
 
   smoke:
@@ -36,7 +36,7 @@ jobs:
       - name: Install with CPU-only PyTorch
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e ".[server]"
+          pip install -e ".[server,transformers]"
       - name: Translate with the CLI
         run: |
           glyphbridge translate "Merhaba dünya, nasılsın?" --from tr --to en --json | tee out.json

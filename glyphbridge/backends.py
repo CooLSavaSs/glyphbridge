@@ -77,6 +77,34 @@ class ModelCache:
             self._items[key] = (value, ram_mb)
         return value
 
+    def loaded(self, key: str) -> bool:
+        return key in self._items
+
+    def failed(self, key: str) -> bool:
+        return key in self._failed
+
+
+def has_transformers() -> bool:
+    """PyTorch + Transformers are an extra (pip install "glyphbridge[transformers]"),
+    not part of the light base install."""
+    import importlib.util
+    return all(importlib.util.find_spec(m) is not None for m in ("transformers", "torch"))
+
+
+# Hugging Face existence checks, once per process: "does this model repo exist?" is a
+# small metadata request, unlike loading the model (hundreds of MB of RAM).
+_REPO_EXISTS: dict = {}
+
+
+def repo_exists(name: str) -> bool:
+    if name not in _REPO_EXISTS:
+        try:
+            from huggingface_hub import HfApi  # type: ignore
+            _REPO_EXISTS[name] = bool(HfApi().repo_exists(name))
+        except Exception:  # noqa: BLE001 - no network / no huggingface_hub: cannot download it either
+            _REPO_EXISTS[name] = False
+    return _REPO_EXISTS[name]
+
 
 CACHE = ModelCache()
 
@@ -151,18 +179,34 @@ class OpusBackend(Backend):
         return [n for n in (tpl.format(src=source, tgt=target) for tpl in self.templates)
                 if n not in self.broken]
 
+    def _available(self, source: str, target: str) -> List[str]:
+        """Model names that can be used for the pair, found WITHOUT loading any model:
+        already loaded, installed in the Hugging Face cache, or (online) present on the Hub."""
+        names = [n for n in self._names(source, target) if not self.cache.failed(n)]
+        if not names or not has_transformers():
+            return []
+        cached = None
+        out = []
+        for name in names:
+            if self.cache.loaded(name):
+                out.append(name)
+                continue
+            if cached is None:
+                cached = _cached_repos()
+            if name in cached or (not offline() and repo_exists(name)):
+                out.append(name)  # offline: only installed pair cards
+        return out
+
     def _model_for(self, source: str, target: str):
-        cached = _cached_repos() if offline() else None
-        for name in self._names(source, target):
-            if cached is not None and name not in cached:
-                continue  # offline: only installed pair cards
+        for name in self._available(source, target):
             loaded = self._load_named(name)
             if loaded is not None:
                 return name, loaded
         return None, None
 
     def supports(self, source: str, target: str) -> bool:
-        return self._model_for(source, target)[0] is not None
+        """Answers from names alone; the model is loaded only when a sentence is translated."""
+        return bool(self._available(source, target))
 
     def translate(self, texts, source, target) -> Output:
         name, loaded = self._model_for(source, target)
@@ -394,6 +438,28 @@ def meaning_mode() -> bool:
     return os.environ.get("GLYPHBRIDGE_MEANING", "0") == "1"
 
 
+# Context window (opt-in, GLYPHBRIDGE_CONTEXT=1): LLM cards see the preceding paragraph of
+# the document, so pronouns, terms and tone carry over. Off by default: it changes the
+# measured prompts, so it stays opt-in until golden-set numbers show it helps.
+CONTEXT_HINT = "Context (the preceding text, for reference only; do not translate it):"
+_CONTEXT = threading.local()
+
+
+def context_mode() -> bool:
+    return os.environ.get("GLYPHBRIDGE_CONTEXT", "0") == "1"
+
+
+def set_context(mapping) -> None:
+    """Text -> preceding text, for the sentences about to be translated (the engine sets it)."""
+    _CONTEXT.map = dict(mapping or {})
+
+
+def context_for(text: str) -> str:
+    if not context_mode():
+        return ""
+    return (getattr(_CONTEXT, "map", None) or {}).get(text, "")
+
+
 def gemma_prompt(text: str, source: str, target: str) -> str:
     """TranslateGemma's translation instruction in Gemma's chat format."""
     src, tgt = LANG_NAMES.get(source, source), LANG_NAMES.get(target, target)
@@ -401,7 +467,8 @@ def gemma_prompt(text: str, source: str, target: str) -> str:
         f"You are a professional {src} ({source}) to {tgt} ({target}) translator. Your goal is to "
         f"accurately convey the meaning and nuances of the original {src} text while adhering to "
         f"{tgt} grammar, vocabulary, and cultural sensitivities.\n"
-        + (MEANING_HINT + "\n" if meaning_mode() else "") +
+        + (MEANING_HINT + "\n" if meaning_mode() else "")
+        + (f"{CONTEXT_HINT}\n{ctx}\n\n" if (ctx := context_for(text)) else "") +
         f"Produce only the {tgt} translation, without any additional explanations or commentary. "
         f"Please translate the following {src} text into {tgt}:\n\n\n{text}"
     )
@@ -503,6 +570,9 @@ class HyMT2Q4Backend(Backend):
     def prompt(text: str, target: str) -> str:
         # The model card's default English prompt; it asks for full language names.
         hint = (MEANING_HINT + " ") if meaning_mode() else ""
+        ctx = context_for(text)
+        if ctx:
+            hint += f"{CONTEXT_HINT}\n{ctx}\n\n"
         return (f"Translate the following text into {LANG_NAMES.get(target, target)}. {hint}Note that you should "
                 f"only output the translated result without any additional explanation:\n\n{text}")
 

@@ -26,9 +26,11 @@ import os
 import unicodedata
 
 from . import cards, lid
+from . import backends as backends_mod
 from .backends import CACHE, Backend, BackendUnavailable, default_backends
 from .checker import Checker, consistency
 from .emotion import Emotion
+from .glossary import Glossary
 from .memory import Memory
 from . import routes as routes_table
 
@@ -72,14 +74,65 @@ class TranslationResult:
     attempts: List[str] = field(default_factory=list)
     issues: List[str] = field(default_factory=list)
     tone: Optional[str] = None   # source tone from the emotion module, when it is on
+    # Separate signals, so nobody has to guess what `confidence` mixes together:
+    detected_script: Optional[str] = None          # ISO 15924 of the source text: Latn, Arab, ...
+    ocr_confidence: Optional[float] = None         # Tesseract's word confidence (0-1), images only
+    translation_confidence: Optional[float] = None  # the model's own token probability (0-1)
+    consistency_issues: List[str] = field(default_factory=list)  # numbers / names / empty output
+    expert_review_required: bool = False           # see needs_review()
+    box: Optional[tuple] = None                    # photos: (left, top, right, bottom) of the line in pixels
 
     def to_dict(self) -> dict:
         return asdict(self)
 
 
+# A person should check the result when any of these hold. The thresholds are starting
+# points, not measured cut-offs (OCR and probability calibration are not measured yet).
+OCR_REVIEW_BELOW = 0.70
+PROBABILITY_REVIEW_BELOW = 0.50
+
+
+def needs_review(r: TranslationResult) -> bool:
+    """True when the result failed a check, the OCR was unsure, or no meaning check ran
+    and the model itself was unsure."""
+    if r.flagged or r.issues:
+        return True
+    if r.ocr_confidence is not None and r.ocr_confidence < OCR_REVIEW_BELOW:
+        return True
+    return (r.similarity is None and r.translation_confidence is not None
+            and r.translation_confidence < PROBABILITY_REVIEW_BELOW)
+
+
+_SCRIPT_CODES = {
+    "LATIN": "Latn", "ARABIC": "Arab", "CYRILLIC": "Cyrl", "GREEK": "Grek", "HEBREW": "Hebr",
+    "CJK": "Hani", "HIRAGANA": "Jpan", "KATAKANA": "Jpan", "HANGUL": "Hang",
+    "DEVANAGARI": "Deva", "BENGALI": "Beng", "TAMIL": "Taml", "TELUGU": "Telu", "THAI": "Thai",
+    "GEORGIAN": "Geor", "ARMENIAN": "Armn", "ETHIOPIC": "Ethi", "SYRIAC": "Syrc", "TIBETAN": "Tibt",
+    "KHMER": "Khmr", "MYANMAR": "Mymr", "GUJARATI": "Gujr", "GURMUKHI": "Guru", "KANNADA": "Knda",
+    "MALAYALAM": "Mlym", "SINHALA": "Sinh", "LAO": "Laoo", "MONGOLIAN": "Mong", "THAANA": "Thaa",
+    "EGYPTIAN": "Egyp", "CUNEIFORM": "Xsux", "RUNIC": "Runr", "COPTIC": "Copt", "OLD": "Ital",
+}
+
+
+def detect_script(text: str) -> Optional[str]:
+    """Most common writing system among the letters of ``text`` (ISO 15924), or None."""
+    counts: Dict[str, int] = {}
+    for ch in text:
+        if not ch.isalpha():
+            continue
+        word = unicodedata.name(ch, "").split(" ")[0]
+        code = _SCRIPT_CODES.get(word, word.title()[:4] if word else None)
+        if code:
+            counts[code] = counts.get(code, 0) + 1
+    return max(counts, key=counts.get) if counts else None
+
+
 class Engine:
     def __init__(self, backends: Optional[List[Backend]] = None, checker: Optional[Checker] = None,
-                 memory: Optional[Memory] = None, emotion: Optional[Emotion] = None):
+                 memory: Optional[Memory] = None, emotion: Optional[Emotion] = None,
+                 glossary: Optional[Glossary] = None):
+        from . import profiles
+        profiles.apply_from_env()  # GLYPHBRIDGE_PROFILE for the API, MCP and Python too
         if cards.offline():
             os.environ["HF_HUB_OFFLINE"] = "1"  # use installed cards only, never download
         self.backends = backends if backends is not None else default_backends()
@@ -88,6 +141,8 @@ class Engine:
         self.memory = memory if memory is not None else Memory.from_env()
         # Emotion module card: flags translations whose tone flips.
         self.emotion = emotion if emotion is not None else Emotion()
+        # Your fixed terms: kept consistent across every sentence of a document.
+        self.glossary = glossary if glossary is not None else Glossary.from_env()
         # Results cache: a sentence repeated in a document is translated only once.
         self._cache: "OrderedDict[tuple, TranslationResult]" = OrderedDict()
         self.cache_size = int(os.environ.get("GLYPHBRIDGE_RESULT_CACHE", "2048"))
@@ -107,7 +162,8 @@ class Engine:
                 tuple(b.name for b in self._ordered()),
                 routes_table.VERSION if routes_table.enabled() else None,
                 os.environ.get("GLYPHBRIDGE_MEANING", "0"),
-                self.memory.fingerprint(), self.emotion.enabled())
+                self.memory.fingerprint(), self.emotion.enabled(), self.glossary.fingerprint(),
+                os.environ.get("GLYPHBRIDGE_CONTEXT", "0"))
 
     def _ordered(self) -> List[Backend]:
         """Backends in the order to try them.
@@ -166,25 +222,49 @@ class Engine:
         if not texts:
             return []
         if source in (None, "", "auto"):
-            detected = lid.detect(" ".join(texts))
-            if not detected:
-                raise TranslationError("Could not detect the source language; pass source=...")
-            source = detected
+            sources = detect_each(texts)
+            if len(set(sources)) > 1:
+                # Mixed-language input: translate each language group on its own.
+                out: List[Optional[TranslationResult]] = [None] * len(texts)
+                for lang in dict.fromkeys(sources):
+                    idx = [i for i, s in enumerate(sources) if s == lang]
+                    for i, r in zip(idx, self.translate_batch([texts[i] for i in idx], target, lang)):
+                        out[i] = r
+                return out  # type: ignore[return-value]
+            source = sources[0]
         source, target = source.lower(), target.lower()
         fp = self.fingerprint()
-        keys = [(_normalize(t), source, target, fp) for t in texts]
+        ctx: Dict[str, str] = {}
+        if backends_mod.context_mode():
+            # Context window: each text sees the one before it; it is part of the cache key,
+            # because the same sentence can translate differently after different paragraphs.
+            for i, t in enumerate(texts):
+                if i and t not in ctx:
+                    ctx[t] = texts[i - 1]
+        keys = [(_normalize(t), source, target, fp, _normalize(ctx.get(t, ""))) for t in texts]
         todo = list(dict.fromkeys(k for k in keys if k not in self._cache))
         if todo:
             first_text = {}
             for t, k in zip(texts, keys):
                 first_text.setdefault(k, t)
-            fresh = self._translate_uncached([first_text[k] for k in todo], target, source)
+            backends_mod.set_context(ctx)
+            try:
+                fresh = self._translate_uncached([first_text[k] for k in todo], target, source)
+            finally:
+                backends_mod.set_context({})
             for k, r in zip(todo, fresh):
                 self._cache[k] = r
                 self._cache.move_to_end(k)
             while len(self._cache) > self.cache_size:
                 self._cache.popitem(last=False)
-        return [replace(self._cache[k], attempts=list(self._cache[k].attempts)) for k in keys]
+        results = []
+        for t, k in zip(texts, keys):
+            r = self._cache[k]
+            r = replace(r, attempts=list(r.attempts), issues=list(r.issues),
+                        consistency_issues=list(r.consistency_issues), detected_script=detect_script(t))
+            r.expert_review_required = needs_review(r)
+            results.append(r)
+        return results
 
     def _translate_uncached(self, texts: Sequence[str], target: str, source: str) -> List[TranslationResult]:
         if not texts:
@@ -226,7 +306,8 @@ class Engine:
             still = []
             for i, out, prob, sim, out_tone in zip(pending, outs, probs, sims, out_tones):
                 conf = sim if sim is not None else prob
-                issues = consistency(texts[i], out, source)
+                found = consistency(texts[i], out, source) + self.glossary.check(texts[i], out, source, target)
+                issues = list(found)
                 flip = self.emotion.flipped(tones[i], out_tone)
                 if flip:
                     issues.append(flip)
@@ -235,7 +316,9 @@ class Engine:
                 attempts = (prev.attempts if prev else []) + [label]
                 cand = TranslationResult(out, source, target, None if conf is None else round(conf, 4), label,
                                          flagged=not ok, similarity=sim, attempts=attempts, issues=issues,
-                                         tone=tones[i][0] if tones[i] else None)
+                                         tone=tones[i][0] if tones[i] else None,
+                                         translation_confidence=None if prob is None else round(prob, 4),
+                                         consistency_issues=found)
                 better = (len(cand.issues), -(cand.confidence or 0)) < (len(prev.issues), -(prev.confidence or 0)) if prev else True
                 if prev is None or ok or better:
                     best[i] = cand
@@ -246,11 +329,38 @@ class Engine:
             pending = still
 
         if any(r is None for r in best):
-            raise TranslationError(f"No backend could translate {source} -> {target} (models unavailable?)")
+            raise TranslationError(
+                f"No backend could translate {source} -> {target} (models unavailable?). The base install "
+                "has no translation engine: pip install \"glyphbridge[8gb]\" (no PyTorch) or "
+                "\"glyphbridge[transformers]\" (Opus-MT, needs PyTorch).")
         return best  # type: ignore[return-value]
 
     def translate(self, text: str, target: str, source: str = "auto") -> TranslationResult:
         return self.translate_batch([text], target=target, source=source)[0]
+
+
+# Below this many letters a segment is too short to identify reliably ("OK", "2024", a name),
+# so it takes the language of the whole input instead.
+MIN_DETECT_LETTERS = 20
+
+
+def detect_each(texts: Sequence[str]) -> List[str]:
+    """Source language per segment: each long-enough segment is detected on its own (so a
+    Turkish paragraph inside an English document is not translated as English); short or
+    undetectable segments fall back to the language of the whole input."""
+    whole: Optional[str] = None
+    tried_whole = False
+    out: List[str] = []
+    for t in texts:
+        code = lid.detect(t) if sum(ch.isalpha() for ch in t) >= MIN_DETECT_LETTERS else None
+        if not code:
+            if not tried_whole:
+                whole, tried_whole = lid.detect(" ".join(texts)), True
+            code = whole
+        if not code:
+            raise TranslationError("Could not detect the source language; pass source=...")
+        out.append(code.lower())
+    return out
 
 
 def _normalize(text: str) -> str:

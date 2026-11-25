@@ -1,4 +1,4 @@
-"""Glyphbridge: free, offline, open-source translation for every script."""
+"""Glyphbridge: a free, offline, open-source translation toolkit."""
 
 from .engine import Engine, TranslationResult, get_engine, translate
 

@@ -11,21 +11,30 @@ on:
   workflow_dispatch:
     inputs:
       backends:
-        description: "Cards to use, e.g. madlad-int8 (default: the three wide-coverage cards)"
+        description: "Cards to use, e.g. madlad-int8, or opus,hymt2-q4,gemma-q4,madlad-int8 to include Opus-MT pair models (default: the three wide-coverage cards)"
         default: "hymt2-q4,gemma-q4,madlad-int8"
       langs:
         description: "FLORES codes separated by spaces (default: all 50)"
         default: ""
+      direction:
+        description: "x-en (each language into English), en-x (English into each language) or both"
+        default: "both"
+      sentences:
+        description: "Sentences per language (20 = quick; 100 = the planned full run, about 5x longer)"
+        default: "20"
+      context:
+        description: "1 = context window on (LLM cards see the preceding sentence; FLORES sentences are consecutive), compare with a run at 0"
+        default: "0"
 
 concurrency:
-  group: flores-${{ github.ref }}-${{ inputs.backends }}-${{ inputs.langs }}
+  group: flores-${{ github.ref }}-${{ inputs.backends }}-${{ inputs.langs }}-${{ inputs.direction }}-${{ inputs.sentences }}-${{ inputs.context }}
   cancel-in-progress: true
 
 jobs:
   flores:
     name: FLORES-200 X->English, wide-coverage 8 GB cards
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 340   # both directions; GitHub-hosted jobs stop at 360
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,13 +44,26 @@ jobs:
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-          pip install -e ".[small]" sacrebleu
+          pip install -e ".[8gb,transformers]" sacrebleu   # transformers: lets a run add per-pair opus cards (backends input)
       - name: Install the 8 GB cards
         run: glyphbridge cards install madlad-int8 gemma-q4 hymt2-q4
-      - name: FLORES-200, 20 sentences per language (report only)
+      - name: FLORES-200, X->English (report only)
+        if: ${{ (inputs.direction || 'both') != 'en-x' }}
         env:
           GLYPHBRIDGE_ENABLE_HYMT: "1"
           GLYPHBRIDGE_ENABLE_GEMMA: "1"
           GLYPHBRIDGE_BACKENDS: ${{ inputs.backends || 'hymt2-q4,gemma-q4,madlad-int8' }}
           LANGS: ${{ inputs.langs }}
-        run: python scripts/flores.py --sentences 20 ${LANGS:+--langs $LANGS} --json flores.json
+          N: ${{ inputs.sentences || '20' }}
+          GLYPHBRIDGE_CONTEXT: ${{ inputs.context || '0' }}
+        run: python scripts/flores.py --direction x-en --sentences "$N" ${LANGS:+--langs $LANGS} --json flores-x-en.json
+      - name: FLORES-200, English->X (report only)
+        if: ${{ (inputs.direction || 'both') != 'x-en' }}
+        env:
+          GLYPHBRIDGE_ENABLE_HYMT: "1"
+          GLYPHBRIDGE_ENABLE_GEMMA: "1"
+          GLYPHBRIDGE_BACKENDS: ${{ inputs.backends || 'hymt2-q4,gemma-q4,madlad-int8' }}
+          LANGS: ${{ inputs.langs }}
+          N: ${{ inputs.sentences || '20' }}
+          GLYPHBRIDGE_CONTEXT: ${{ inputs.context || '0' }}
+        run: python scripts/flores.py --direction en-x --sentences "$N" ${LANGS:+--langs $LANGS} --json flores-en-x.json
