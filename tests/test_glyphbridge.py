@@ -801,3 +801,19 @@ def test_punctuation_only_output_is_an_error():
     from glyphbridge.checker import consistency
     assert consistency("저는 매일 아침 커피를 마십니다.", ".") == ["empty translation"]
     assert consistency("Ok.", "Tamam.") == []
+
+
+def test_builtin_idiom_memory_is_opt_in_and_overridable(monkeypatch, tmp_path):
+    from glyphbridge.memory import BUILTIN_IDIOMS, Memory
+    monkeypatch.delenv("GLYPHBRIDGE_MEMORY", raising=False)
+    monkeypatch.delenv("GLYPHBRIDGE_IDIOMS", raising=False)
+    assert len(Memory.from_env()) == 0
+    monkeypatch.setenv("GLYPHBRIDGE_IDIOMS", "1")
+    m = Memory.from_env()
+    assert len(m) >= 80 and m.get("Damlaya damlaya göl olur.", "tr", "en") == "Every little helps."
+    assert m.get("Every little helps", "en", "tr") == "Damlaya damlaya göl olur."
+    own = tmp_path / "mine.tsv"
+    own.write_text("tr\ten\tDamlaya damlaya göl olur.\tLittle drops make a lake.\n", encoding="utf-8")
+    monkeypatch.setenv("GLYPHBRIDGE_MEMORY", str(own))
+    assert Memory.from_env().get("damlaya damlaya göl olur", "tr", "en") == "Little drops make a lake."
+    assert BUILTIN_IDIOMS.endswith("idioms.tsv")

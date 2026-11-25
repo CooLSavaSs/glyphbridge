@@ -1,0 +1,83 @@
+# Built-in idiom memory (GLYPHBRIDGE_IDIOMS=1). Folk proverbs and idioms, public domain.
+# Columns: source_lang<TAB>target_lang<TAB>source<TAB>translation. Your own memory files
+# (GLYPHBRIDGE_MEMORY / --memory) override these entries.
+tr	en	Damlaya damlaya göl olur.	Every little helps.
+tr	en	Ayağını yorganına göre uzat.	Cut your coat according to your cloth.
+tr	en	Bir taşla iki kuş vurmak.	To kill two birds with one stone.
+tr	en	Sakla samanı, gelir zamanı.	Waste not, want not.
+tr	en	Üzüm üzüme baka baka kararır.	A man is known by the company he keeps.
+tr	en	Gözden ırak olan gönülden de ırak olur.	Out of sight, out of mind.
+tr	en	Bu iş çocuk oyuncağı.	This is child's play.
+tr	en	Bardaktan boşanırcasına yağmur yağıyor.	It's raining cats and dogs.
+tr	en	Geç olsun da güç olmasın.	Better late than never.
+tr	en	Acele işe şeytan karışır.	Haste makes waste.
+tr	en	Ak akçe kara gün içindir.	Save for a rainy day.
+tr	en	Ateş olmayan yerden duman çıkmaz.	There is no smoke without fire.
+tr	en	Az olsun, öz olsun.	Quality over quantity.
+tr	en	Balık baştan kokar.	The fish rots from the head down.
+tr	en	Bin bilsen de bir bilene danış.	Two heads are better than one.
+tr	en	Bugünün işini yarına bırakma.	Don't put off until tomorrow what you can do today.
+tr	en	Dost kara günde belli olur.	A friend in need is a friend indeed.
+tr	en	Her işte bir hayır vardır.	Every cloud has a silver lining.
+tr	en	Her yiğidin bir yoğurt yiyişi vardır.	Everyone has their own way of doing things.
+tr	en	İşleyen demir ışıldar.	Practice makes perfect.
+tr	en	Kervan yolda düzülür.	Things will sort themselves out along the way.
+tr	en	Mum dibine ışık vermez.	It is always darkest under the lamp.
+tr	en	Nerede birlik orada dirlik.	Unity is strength.
+tr	en	Ne ekersen onu biçersin.	You reap what you sow.
+tr	en	Roma bir günde kurulmadı.	Rome wasn't built in a day.
+tr	en	Sabreden derviş muradına ermiş.	Good things come to those who wait.
+tr	en	Söz gümüşse sükût altındır.	Speech is silver, silence is golden.
+tr	en	Tatlı dil yılanı deliğinden çıkarır.	A soft answer turns away wrath.
+tr	en	Yalancının mumu yatsıya kadar yanar.	Lies have short legs.
+tr	en	Yuvarlanan taş yosun tutmaz.	A rolling stone gathers no moss.
+tr	en	Ağaç yaşken eğilir.	As the twig is bent, so grows the tree.
+tr	en	Ağlamayan çocuğa meme vermezler.	The squeaky wheel gets the grease.
+tr	en	Atı alan Üsküdar'ı geçti.	The horse has already bolted.
+tr	en	Bin dereden su getirmek.	To make all sorts of excuses.
+tr	en	Dereyi görmeden paçaları sıvama.	Don't count your chickens before they hatch.
+tr	en	Eşek hoşaftan ne anlar.	Don't cast pearls before swine.
+tr	en	Görünen köy kılavuz istemez.	It goes without saying.
+tr	en	Kaş yapayım derken göz çıkarmak.	To make matters worse while trying to help.
+tr	en	Kol kırılır yen içinde.	Don't wash your dirty linen in public.
+tr	en	Tencere yuvarlanmış kapağını bulmuş.	Birds of a feather flock together.
+en	tr	Every little helps.	Damlaya damlaya göl olur.
+en	tr	Cut your coat according to your cloth.	Ayağını yorganına göre uzat.
+en	tr	To kill two birds with one stone.	Bir taşla iki kuş vurmak.
+en	tr	Waste not, want not.	Sakla samanı, gelir zamanı.
+en	tr	A man is known by the company he keeps.	Üzüm üzüme baka baka kararır.
+en	tr	Out of sight, out of mind.	Gözden ırak olan gönülden de ırak olur.
+en	tr	This is child's play.	Bu iş çocuk oyuncağı.
+en	tr	It's raining cats and dogs.	Bardaktan boşanırcasına yağmur yağıyor.
+en	tr	Better late than never.	Geç olsun da güç olmasın.
+en	tr	Haste makes waste.	Acele işe şeytan karışır.
+en	tr	Save for a rainy day.	Ak akçe kara gün içindir.
+en	tr	There is no smoke without fire.	Ateş olmayan yerden duman çıkmaz.
+en	tr	Quality over quantity.	Az olsun, öz olsun.
+en	tr	The fish rots from the head down.	Balık baştan kokar.
+en	tr	Two heads are better than one.	Bin bilsen de bir bilene danış.
+en	tr	Don't put off until tomorrow what you can do today.	Bugünün işini yarına bırakma.
+en	tr	A friend in need is a friend indeed.	Dost kara günde belli olur.
+en	tr	Every cloud has a silver lining.	Her işte bir hayır vardır.
+en	tr	Everyone has their own way of doing things.	Her yiğidin bir yoğurt yiyişi vardır.
+en	tr	Practice makes perfect.	İşleyen demir ışıldar.
+en	tr	Things will sort themselves out along the way.	Kervan yolda düzülür.
+en	tr	It is always darkest under the lamp.	Mum dibine ışık vermez.
+en	tr	Unity is strength.	Nerede birlik orada dirlik.
+en	tr	You reap what you sow.	Ne ekersen onu biçersin.
+en	tr	Rome wasn't built in a day.	Roma bir günde kurulmadı.
+en	tr	Good things come to those who wait.	Sabreden derviş muradına ermiş.
+en	tr	Speech is silver, silence is golden.	Söz gümüşse sükût altındır.
+en	tr	A soft answer turns away wrath.	Tatlı dil yılanı deliğinden çıkarır.
+en	tr	Lies have short legs.	Yalancının mumu yatsıya kadar yanar.
+en	tr	A rolling stone gathers no moss.	Yuvarlanan taş yosun tutmaz.
+en	tr	As the twig is bent, so grows the tree.	Ağaç yaşken eğilir.
+en	tr	The squeaky wheel gets the grease.	Ağlamayan çocuğa meme vermezler.
+en	tr	The horse has already bolted.	Atı alan Üsküdar'ı geçti.
+en	tr	To make all sorts of excuses.	Bin dereden su getirmek.
+en	tr	Don't count your chickens before they hatch.	Dereyi görmeden paçaları sıvama.
+en	tr	Don't cast pearls before swine.	Eşek hoşaftan ne anlar.
+en	tr	It goes without saying.	Görünen köy kılavuz istemez.
+en	tr	To make matters worse while trying to help.	Kaş yapayım derken göz çıkarmak.
+en	tr	Don't wash your dirty linen in public.	Kol kırılır yen içinde.
+en	tr	Birds of a feather flock together.	Tencere yuvarlanmış kapağını bulmuş.

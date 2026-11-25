@@ -30,13 +30,15 @@ ROUTES: Dict[str, Tuple[List[str], str]] = {
     "en-ar": (["opus", "hymt2-q4"], "opus 81.3 > hymt2-q4 69.4"),
     "en-ru": (["hymt2-q4", "opus"], "hymt2-q4 83.8 > opus 70.8"),
     "en-zh": (["hymt2-q4", "opus"], "hymt2-q4 50.6 > opus 39.0"),
-    "fa-en": (["hymt2-q4"], "hymt2-q4 86.9; no Opus-MT model"),
+    "fa-en": (["gemma-q4", "hymt2-q4", "madlad-int8"], "gemma-q4 88.0 > hymt2-q4 86.9 > madlad-int8 66.0 (CI #103)"),
     "ja-en": (["hymt2-q4", "opus"], "hymt2-q4 92.5 > opus 81.7"),
-    "ko-en": (["hymt2-q4", "opus"], "hymt2-q4 84.3 > opus (tc-big broken) 1.0"),
-    "hi-en": (["hymt2-q4", "opus"], "hymt2-q4 78.1 > opus 66.7"),
+    "ko-en": (["hymt2-q4", "gemma-q4", "opus"], "hymt2-q4 84.3 > gemma-q4 72.7 > opus (tc-big broken) 1.0"),
+    "hi-en": (["gemma-q4", "hymt2-q4", "opus"], "gemma-q4 88.1 > hymt2-q4 78.1 > opus 66.7 (CI #103)"),
+    "sw-en": (["gemma-q4", "madlad-int8"], "gemma-q4 92.0 > madlad-int8 70.7; no Opus-MT, no Hy-MT2 (CI #103)"),
+    "el-en": (["gemma-q4", "madlad-int8"], "gemma-q4 86.7 > madlad-int8 79.2; Opus tc-big broken (CI #103)"),
 }
 
-VERSION = "golden-v3-ci102"
+VERSION = "golden-v3-ci103"
 
 
 def enabled() -> bool:

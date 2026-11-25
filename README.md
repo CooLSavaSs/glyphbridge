@@ -97,6 +97,14 @@ What the larger set changed: on golden-v1 (18 sentences) Hy-MT2 beat Opus-MT for
 
 **golden-v3** (344 sentences, 21 pairs; report only) adds English→German/French/Spanish/Russian/Arabic/Chinese and Persian, Japanese, Korean, Hindi, Swahili, Greek→English. Hy-MT2 leads for ja→en (92.5), fa→en (86.9), ko→en (84.3), hi→en (78.1), en→ru (83.8) and en→zh (50.6); Opus-MT for en→fr (96.3), en→de (88.7), en→es (86.9) and en→ar (81.3). The route table includes these pairs. Two more broken Opus-MT tc-big models turned up (Greek, Korean: punctuation only) and are skipped; a translation with no letters is now always treated as failed. **Meaning mode** (`GLYPHBRIDGE_MEANING=1`, an idiom instruction for LLM cards) moved idiom scores by only 0–1.7 chrF and lowered zh→en by 2.5, so it stays opt-in: idioms need data (a translation memory), not a prompt.
 
+**Low-resource probe** (golden-v3, 9 sentences per pair, CI #103): TranslateGemma 4-bit scores sw→en **92.0**, hi→en **88.1**, fa→en **88.0**, el→en **86.7**; MADLAD int8 70.7 / – / 66.0 / 79.2. The route table now sends these pairs to `gemma-q4` first.
+
+**Coverage:** with the 8 GB cards installed, `glyphbridge languages --all` lists **493 languages** (MADLAD int8 492, TranslateGemma 4-bit 50, Hy-MT2 36).
+
+**Low-RAM mode works** (`GLYPHBRIDGE_LOW_RAM=1`, `pip install "glyphbridge[lowram]"`): the 9.4 GB full TranslateGemma ran under a hard **6 GB** memory cap with no swap, streaming the layers that did not fit from disk. Peak RAM 3.4 GB, both test sentences translated correctly, 44 s including loading (CI #103). Slower, but a model larger than the PC's RAM runs.
+
+**Built-in idiom memory** (`GLYPHBRIDGE_IDIOMS=1`): 40 common Turkish↔English proverbs and idioms (folk sayings, both directions), used before any model; your own memory files override them.
+
 Not used by default because their licenses forbid commercial use or exclude regions: NLLB-200 (CC-BY-NC), Cohere North Small Translate (CC-BY-NC). (Tencent Hy-MT2 used to be in this list; it is Apache 2.0 now and is the `hymt2-q4` card.)
 
 **Hy-MT2** (Tencent, the most-liked translation model on Hugging Face) is the best card measured so far for Turkish↔English: chrF **79.6** / **77.9** against Opus-MT's 75.6 / 76.8, idioms 46.8 against 28.4, at 2.2 GB peak RAM. Once installed (`glyphbridge cards install hymt2-q4`) it is tried first.

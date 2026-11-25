@@ -96,6 +96,14 @@ Büyük setin değiştirdiği: golden-v1'de (18 cümle) Hy-MT2 tr→en'de Opus-M
 
 **golden-v3** (344 cümle, 21 çift; yalnız rapor): İngilizce→Almanca/Fransızca/İspanyolca/Rusça/Arapça/Çince ile Farsça, Japonca, Korece, Hintçe, Svahili, Yunanca→İngilizce eklendi. Hy-MT2 ja→en (92,5), fa→en (86,9), ko→en (84,3), hi→en (78,1), en→ru (83,8) ve en→zh'de (50,6) önde; Opus-MT en→fr (96,3), en→de (88,7), en→es (86,9) ve en→ar'da (81,3). Yönlendirme tablosu bu çiftleri de içeriyor. İki bozuk Opus-MT tc-big modeli daha çıktı (Yunanca, Korece: yalnız noktalama) ve atlanıyor; harf içermeyen bir çeviri artık her zaman başarısız sayılıyor. **Anlam modu** (`GLYPHBRIDGE_MEANING=1`, büyük dil modeli kartlarına deyim talimatı) deyim puanını yalnız 0–1,7 chrF artırdı, zh→en'i 2,5 düşürdü; bu yüzden isteğe bağlı kalıyor. Deyimler için talimat değil veri (çeviri belleği) gerekiyor.
 
+**Düşük kaynaklı diller** (golden-v3, çift başına 9 cümle, CI #103): TranslateGemma 4-bit sw→en **92,0**, hi→en **88,1**, fa→en **88,0**, el→en **86,7**; MADLAD int8 70,7 / – / 66,0 / 79,2. Yönlendirme tablosu bu çiftleri önce `gemma-q4`'e gönderiyor.
+
+**Kapsam:** 8 GB kartları kuruluyken `glyphbridge languages --all` **493 dil** listeliyor (MADLAD int8 492, TranslateGemma 4-bit 50, Hy-MT2 36).
+
+**Düşük RAM modu çalışıyor** (`GLYPHBRIDGE_LOW_RAM=1`, `pip install "glyphbridge[lowram]"`): 9,4 GB'lık tam boy TranslateGemma, takas alanı olmadan katı **6 GB** bellek sınırında çalıştı; sığmayan katmanlar diskten okundu. En yüksek RAM 3,4 GB, iki test cümlesi de doğru çevrildi, yükleme dahil 44 sn (CI #103). Daha yavaş, ama bilgisayarın RAM'inden büyük bir model çalışıyor.
+
+**Yerleşik deyim belleği** (`GLYPHBRIDGE_IDIOMS=1`): 40 yaygın Türkçe↔İngilizce atasözü ve deyim (halk sözleri, iki yönde), her modelden önce kullanılır; kendi bellek dosyalarınız bunların önüne geçer.
+
 **Hy-MT2** (Tencent; Hugging Face'te en çok beğenilen çeviri modeli) Türkçe↔İngilizce için şimdiye kadar ölçülen en iyi kart: chrF **79,6** / **77,9** (Opus-MT 75,6 / 76,8), deyimlerde 46,8 (Opus-MT 28,4), tepe RAM 2,2 GB. Kurulunca (`glyphbridge cards install hymt2-q4`) ilk o denenir.
 
 ### Duygu modülü: tonu koruyun

@@ -48,5 +48,8 @@ glyphbridge = "glyphbridge.cli:main"
 Homepage = "https://github.com/CooLSavaSs/glyphbridge"
 Issues = "https://github.com/CooLSavaSs/glyphbridge/issues"
 
+[tool.setuptools.package-data]
+glyphbridge = ["data/*.tsv"]
+
 [tool.setuptools.packages.find]
 include = ["glyphbridge*"]

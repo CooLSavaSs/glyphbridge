@@ -28,6 +28,9 @@ def _key(text: str) -> str:
     return text.rstrip(".!?。！？…")
 
 
+BUILTIN_IDIOMS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "idioms.tsv")
+
+
 class Memory:
     def __init__(self, paths: Optional[List[str]] = None):
         self.paths = [p for p in (paths or []) if p]
@@ -38,7 +41,11 @@ class Memory:
     @classmethod
     def from_env(cls) -> "Memory":
         raw = os.environ.get("GLYPHBRIDGE_MEMORY", "")
-        return cls(raw.split(os.pathsep) if raw else [])
+        paths = raw.split(os.pathsep) if raw else []
+        if os.environ.get("GLYPHBRIDGE_IDIOMS", "0") == "1":
+            # Built-in idiom memory first, so the user's own files override it.
+            paths = [BUILTIN_IDIOMS] + paths
+        return cls(paths)
 
     def load(self, path: str) -> None:
         with open(path, encoding="utf-8") as fh:
