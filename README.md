@@ -37,7 +37,7 @@ High-quality translation today is mostly paid, online and closed. Glyphbridge ai
 | Low-RAM mode (models larger than RAM, streamed from disk) | 🔬 Experimental |
 | Emotion module (tone check), built-in idiom memory, meaning mode, context window (`GLYPHBRIDGE_CONTEXT=1`: LLM cards see the preceding paragraph; not measured yet) | 🔬 Experimental |
 | PDF layout, natural voices, vocabulary-trimmed cards | 📋 Planned |
-| **Ottoman Turkish, printed**: page → lines → Arabic-script text (`glyphbridge ottoman page.png`, card `ota-ocr` = Azra 1-Mini 0.8B, Apache 2.0) | 🔬 Experimental — code and tests ready, **accuracy not measured by us yet** (authors report 80.2% characters on printed nesih) |
+| **Ottoman Turkish, printed**: page → lines → Arabic-script text (`glyphbridge ottoman page.png`, card `ota-ocr` = Azra 1-Mini 0.8B, Apache 2.0) | 🔬 Experimental — measured on the 10 sample lines of the model card (not an independent test set): **96.9%** character accuracy on printed nesih, **86.5%** on handwritten rika, ~1.5 s per line on CPU; Arabic kaf/ye are normalized to their Ottoman forms |
 | **Ottoman Turkish**: handwriting (rika, divani), transliteration to Latin letters, modern Turkish | 📋 Planned — no openly licensed transliteration model with weights found yet |
 | Sign lists from Unicode text: `glyphbridge signs "𓀀𓂀"` → Gardiner codes `A1-D58`; cuneiform → sign names (`A-ASH`) | 🔬 Experimental — listing only, not reading or translation; Unicode input only |
 | **Egyptian hieroglyphs** (sign recognition in photos) and **cuneiform** (Akkadian transliteration) | 📋 Planned — research, with experts |
