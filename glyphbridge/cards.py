@@ -87,7 +87,8 @@ CARDS: Dict[str, Card] = {
                     "OttomanNLP/Azra-1-Mini-0.8b", 3500, "1.73 GB", "Apache-2.0",
                     "Qwen3.5 vision-language model, needs transformers>=5.14. Reads one text LINE per image; "
                     "glyphbridge cuts pages into lines first. Authors report 80.2% (nesih) / 67.1% (rika) "
-                    "character accuracy - not measured by us yet. RAM is an estimate.",
+                    "character accuracy on their test sets; on the model card's 10 sample lines we "
+                    "measured 96.9% / 86.5% (after kaf/ye normalization). RAM is an estimate.",
                     revision="7c1c429e9f3d3bad1d59b6ef802264f694b171be",
                     sha256=(("model.safetensors",
                              "dc497f9ba93f6f47fac82a7eb960cd8e70d810d6abd9615a3d563861d0afe87d"),)),

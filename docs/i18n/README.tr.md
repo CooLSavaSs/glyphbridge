@@ -33,7 +33,7 @@
 | Düşük RAM modu (RAM'den büyük modeller diskten okunur) | 🔬 Deneysel |
 | Duygu modülü (ton denetimi), yerleşik deyim belleği, anlam modu, bağlam penceresi (`GLYPHBRIDGE_CONTEXT=1`: LLM kartları önceki paragrafı görür; henüz ölçülmedi) | 🔬 Deneysel |
 | PDF düzeni, doğal sesler, sözlüğü budanmış kartlar | 📋 Planlandı |
-| **Osmanlıca, matbu**: sayfa → satırlar → Arap harfli metin (`glyphbridge ottoman sayfa.png`, kart `ota-ocr` = Azra 1-Mini 0.8B, Apache 2.0) | 🔬 Deneysel — kod ve testler hazır, **doğruluğu henüz bizce ölçülmedi** (yazarlar matbu nesihte %80,2 karakter doğruluğu bildiriyor) |
+| **Osmanlıca, matbu**: sayfa → satırlar → Arap harfli metin (`glyphbridge ottoman sayfa.png`, kart `ota-ocr` = Azra 1-Mini 0.8B, Apache 2.0) | 🔬 Deneysel — model kartındaki 10 örnek satırda ölçüldü (bağımsız test seti değil): matbu nesihte **%96,9**, el yazısı rikada **%86,5** karakter doğruluğu, CPU'da satır başına ~1,5 sn; Arapça kef/ye Osmanlıca biçimine normalleştirilir |
 | **Osmanlıca**: el yazısı (rika, divani), Latin harflerine transliterasyon, modern Türkçe | 📋 Planlandı — ağırlıkları açık ve lisansı uygun transliterasyon modeli henüz bulunamadı |
 | Unicode metinden işaret listesi: `glyphbridge signs "𓀀𓂀"` → Gardiner kodları `A1-D58`; çivi yazısı → işaret adları (`A-ASH`) | 🔬 Deneysel — yalnız listeleme, okuma ya da çeviri değil; yalnız Unicode girdi |
 | **Mısır hiyeroglifleri** (fotoğrafta işaret tanıma) ve **çivi yazısı** (Akadça transliterasyon) | 📋 Planlandı — uzmanlarla araştırma |

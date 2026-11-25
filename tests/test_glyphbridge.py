@@ -1361,3 +1361,10 @@ def test_opus_install_skips_tensorflow_copy(monkeypatch):
     monkeypatch.setitem(sys.modules, "huggingface_hub", hub)
     cards.install("opus:yo-en")
     assert "tf_model.h5" in seen["ignore_patterns"]
+
+
+def test_ottoman_letters_normalized_to_persian_forms():
+    from glyphbridge.ottoman import normalize_ottoman
+    assert normalize_ottoman("هلاك ايدر") == "هلاک ایدر"
+    assert normalize_ottoman("غرسى") == "غرسی"
+    assert normalize_ottoman("ونازک") == "ونازک"  # already Ottoman: unchanged
