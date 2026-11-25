@@ -1,0 +1,58 @@
+name: FLORES-200 isolated backend comparison
+
+on:
+  workflow_dispatch:
+    inputs:
+      langs:
+        description: "FLORES codes separated by spaces"
+        required: true
+        default: "yor_Latn ibo_Latn"
+        type: string
+      sentences:
+        description: "Sentences per language (20 quick; 100 extended)"
+        required: true
+        default: "20"
+        type: string
+
+concurrency:
+  group: glyphbridge-heavy-models
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    name: Opus-MT vs MADLAD int8 (isolated runs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+          pip install -e ".[8gb,transformers]" sacrebleu
+      - name: Install MADLAD int8
+        run: glyphbridge cards install madlad-int8
+      - name: Run isolated backend measurements
+        env:
+          LANGS: ${{ inputs.langs }}
+          N: ${{ inputs.sentences }}
+        run: |
+          set -euo pipefail
+          for backend in opus madlad-int8; do
+            for direction in x-en en-x; do
+              echo "### ${backend} — ${direction}" >> "$GITHUB_STEP_SUMMARY"
+              GLYPHBRIDGE_BACKENDS="$backend" python scripts/flores.py \
+                --direction "$direction" --sentences "$N" \
+                --langs $LANGS --json "flores-${backend}-${direction}.json"
+            done
+          done
+      - name: Upload isolated comparison reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: flores-isolated-opus-madlad
+          path: flores-*.json
+          if-no-files-found: error
+          retention-days: 7
