@@ -772,3 +772,32 @@ def test_meaning_mode_adds_idiom_hint_only_when_on(monkeypatch):
     monkeypatch.setenv("GLYPHBRIDGE_MEANING", "1")
     assert backends.MEANING_HINT in backends.gemma_prompt("Damlaya damlaya göl olur.", "tr", "en")
     assert backends.MEANING_HINT in backends.HyMT2Q4Backend.prompt("x", "en")
+
+
+def test_low_ram_settings(monkeypatch, tmp_path):
+    from glyphbridge import backends
+    monkeypatch.delenv("GLYPHBRIDGE_LOW_RAM", raising=False)
+    assert not backends.low_ram()
+    monkeypatch.setenv("GLYPHBRIDGE_LOW_RAM", "1")
+    monkeypatch.setenv("GLYPHBRIDGE_LOW_RAM_MB", "2500")
+    monkeypatch.setenv("GLYPHBRIDGE_OFFLOAD_DIR", str(tmp_path / "off"))
+    assert backends.low_ram() and backends.low_ram_budget_mb() == 2500
+    assert backends.offload_dir() == str(tmp_path / "off") and (tmp_path / "off").is_dir()
+
+
+def test_language_coverage_from_installed_cards(monkeypatch):
+    from glyphbridge import cards, coverage
+    cached = {"Helsinki-NLP/opus-mt-tc-big-tr-en", "Helsinki-NLP/opus-mt-ar-en", cards.CARDS["hymt2-q4"].repo}
+    monkeypatch.setattr(coverage, "_madlad_tags", lambda repo: {"yo", "ha", "tr"})
+    by = coverage.by_card(cached)
+    assert by["opus"] == {"tr", "en", "ar"} and "fa" in by["hymt2-q4"] and "madlad-int8" not in by
+    by = coverage.by_card(cached | {cards.CARDS["madlad-int8"].repo})
+    assert by["madlad-int8"] == {"yo", "ha", "tr"}
+    rows = dict(coverage.table(cached | {cards.CARDS["madlad-int8"].repo}))
+    assert rows["tr"] == ["hymt2-q4", "madlad-int8", "opus"] and rows["yo"] == ["madlad-int8"]
+
+
+def test_punctuation_only_output_is_an_error():
+    from glyphbridge.checker import consistency
+    assert consistency("저는 매일 아침 커피를 마십니다.", ".") == ["empty translation"]
+    assert consistency("Ok.", "Tamam.") == []

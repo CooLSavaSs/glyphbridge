@@ -106,6 +106,9 @@ def consistency(source: str, translation: str, source_lang: Optional[str] = None
     letter does not mark a name (golden-v2: 14 of 15 German sentences were false alarms).
     """
     problems = []
+    # A broken card can return only punctuation ("." for every Korean sentence, CI #102).
+    if sum(c.isalpha() for c in source) >= 3 and not any(c.isalpha() for c in translation):
+        return ["empty translation"]
     have = _numbers(translation)
     for n in _numbers(source):
         if n in have:

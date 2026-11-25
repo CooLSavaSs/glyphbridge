@@ -99,6 +99,25 @@ class Backend:
 
 
 # ---------------------------------------------------------------------------
+# Low-RAM mode (GLYPHBRIDGE_LOW_RAM=1): large Transformers cards keep the layers that do
+# not fit GLYPHBRIDGE_LOW_RAM_MB (default 3000) on disk and stream them in while
+# translating. GGUF cards (llama.cpp) already memory-map their weights from disk.
+def low_ram() -> bool:
+    return os.environ.get("GLYPHBRIDGE_LOW_RAM", "0") == "1"
+
+
+def low_ram_budget_mb() -> int:
+    return int(os.environ.get("GLYPHBRIDGE_LOW_RAM_MB", "3000"))
+
+
+def offload_dir() -> str:
+    path = os.environ.get("GLYPHBRIDGE_OFFLOAD_DIR") or os.path.join(
+        os.path.expanduser("~"), ".cache", "glyphbridge", "offload")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+# ---------------------------------------------------------------------------
 class OpusBackend(Backend):
     """Direct Opus-MT models; tries the larger tc-big model first."""
 
@@ -124,7 +143,9 @@ class OpusBackend(Backend):
     # template (the regular Opus-MT model) is used instead.
     # tc-big-ar-en: word salad for every golden-v2 sentence (chrF 1.3, CI #96), while
     # opus-mt-ar-en translates the same sentences correctly.
-    broken = {"Helsinki-NLP/opus-mt-tc-big-ar-en"}
+    # tc-big-el-en and tc-big-ko-en: same failure on golden-v3 (chrF 1.3 / 1.0, CI #102).
+    broken = {"Helsinki-NLP/opus-mt-tc-big-ar-en", "Helsinki-NLP/opus-mt-tc-big-el-en",
+              "Helsinki-NLP/opus-mt-tc-big-ko-en"}
 
     def _names(self, source: str, target: str):
         return [n for n in (tpl.format(src=source, tgt=target) for tpl in self.templates)
@@ -240,13 +261,24 @@ class GemmaBackend(Backend):
                 from transformers import AutoModelForImageTextToText, AutoProcessor  # type: ignore
                 import torch  # type: ignore
                 proc = AutoProcessor.from_pretrained(self.model_id, revision=self.revision)
-                model = AutoModelForImageTextToText.from_pretrained(
-                    self.model_id, revision=self.revision, torch_dtype=torch.bfloat16,
-                    low_cpu_mem_usage=True).to(self.device).eval()
+                if low_ram():
+                    # Layers that do not fit the RAM budget stay on disk and are streamed in
+                    # one at a time while translating: slower, but a model larger than free
+                    # RAM runs on an 8 GB PC.
+                    model = AutoModelForImageTextToText.from_pretrained(
+                        self.model_id, revision=self.revision, torch_dtype=torch.bfloat16,
+                        low_cpu_mem_usage=True, device_map="auto",
+                        max_memory={"cpu": f"{low_ram_budget_mb()}MiB"},
+                        offload_folder=offload_dir(), offload_state_dict=True).eval()
+                else:
+                    model = AutoModelForImageTextToText.from_pretrained(
+                        self.model_id, revision=self.revision, torch_dtype=torch.bfloat16,
+                        low_cpu_mem_usage=True).to(self.device).eval()
                 return proc, model
             except (ImportError, OSError, ValueError) as exc:
                 raise BackendUnavailable(str(exc)) from exc
-        return self.cache.get(self.model_id, loader, CARDS["gemma"].ram_mb)
+        ram = low_ram_budget_mb() if low_ram() else CARDS["gemma"].ram_mb
+        return self.cache.get(self.model_id, loader, ram)
 
     def supports(self, source: str, target: str) -> bool:
         return self.enabled() and source in self.langs and target in self.langs

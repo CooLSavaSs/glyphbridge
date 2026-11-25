@@ -89,10 +89,16 @@ jobs:
         if: steps.token.outputs.run == 'yes'
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e . pillow
+          pip install -e ".[lowram]" pillow
       - name: Run full TranslateGemma check
         if: steps.token.outputs.run == 'yes'
         run: python scripts/smoke_cards.py gemma
+      # D1: the same 9.4 GB model under a hard 6 GB memory cap (no swap), layers streamed
+      # from disk. Proves a model larger than RAM runs on an 8 GB PC; measures the time.
+      - name: Full TranslateGemma in low-RAM mode under a 6 GB memory cap
+        if: steps.token.outputs.run == 'yes'
+        run: |
+          sudo -E systemd-run --wait --pipe --collect -p MemoryMax=6G -p MemorySwapMax=0             --uid="$(id -u)" --gid="$(id -g)" --working-directory="$PWD"             --setenv=HOME="$HOME" --setenv=PATH="$PATH" --setenv=HF_TOKEN             --setenv=GLYPHBRIDGE_LOW_RAM=1 --setenv=GLYPHBRIDGE_LOW_RAM_MB=3000             "$(which python)" scripts/smoke_cards.py gemma
 
   small-8gb:
     name: 8 GB cards (MADLAD int8, TranslateGemma 4-bit)
@@ -109,6 +115,11 @@ jobs:
           pip install -e ".[small]"
       - name: Run 8 GB card checks
         run: python scripts/smoke_cards.py --isolate madlad-int8 gemma-q4 hymt2-q4 emotion
+      - name: Language coverage of the installed 8 GB cards (E1)
+        run: |
+          glyphbridge languages --all > coverage.tsv
+          echo "### Languages covered by the 8 GB cards" >> "$GITHUB_STEP_SUMMARY"
+          python -c "import collections,sys; rows=[l.rstrip('\n').split('\t') for l in open('coverage.tsv',encoding='utf-8')]; c=collections.Counter(x for r in rows for x in r[2].split(',')); print(f'{len(rows)} languages; per card: {dict(c)}')" | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Verify SHA-256 of the 8 GB cards
         run: |
           glyphbridge cards verify madlad-int8
@@ -152,6 +163,18 @@ jobs:
           python scripts/golden.py tests/golden/v3/en-de.tsv:0 tests/golden/v3/en-fr.tsv:0 tests/golden/v3/en-es.tsv:0 tests/golden/v3/en-ru.tsv:0 \
             tests/golden/v3/en-ar.tsv:0 tests/golden/v3/en-zh.tsv:0 tests/golden/v3/fa-en.tsv:0 tests/golden/v3/ja-en.tsv:0 \
             tests/golden/v3/ko-en.tsv:0 tests/golden/v3/hi-en.tsv:0 tests/golden/v3/sw-en.tsv:0 tests/golden/v3/el-en.tsv:0             --json golden-v3-hymt2.json
+      - name: Golden-v3 low-resource and no-Opus pairs with TranslateGemma 4-bit + MADLAD int8 (report only)
+        env:
+          GLYPHBRIDGE_OFFLINE: "1"
+          GLYPHBRIDGE_BACKENDS: gemma-q4,madlad-int8
+        run: |
+          python scripts/golden.py tests/golden/v3/sw-en.tsv:0 tests/golden/v3/el-en.tsv:0 tests/golden/v3/fa-en.tsv:0 tests/golden/v3/ko-en.tsv:0 tests/golden/v3/hi-en.tsv:0 --json golden-v3-low.json
+      - name: Golden-v3 low-resource pairs with MADLAD int8 alone (report only)
+        env:
+          GLYPHBRIDGE_OFFLINE: "1"
+          GLYPHBRIDGE_BACKENDS: madlad-int8
+        run: |
+          python scripts/golden.py tests/golden/v3/sw-en.tsv:0 tests/golden/v3/el-en.tsv:0 tests/golden/v3/fa-en.tsv:0 --json golden-v3-madlad.json
       - name: Meaning mode (C1), Hy-MT2, idioms before/after (report only)
         env:
           GLYPHBRIDGE_OFFLINE: "1"

@@ -191,9 +191,18 @@ def _cmd_listen(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_languages(_: argparse.Namespace) -> int:
-    for code, name in SUPPORTED_LANGUAGES.items():
-        print(f"{code}\t{name}")
+def _cmd_languages(args: argparse.Namespace) -> int:
+    if not getattr(args, "all", False):
+        for code, name in SUPPORTED_LANGUAGES.items():
+            print(f"{code}\t{name}")
+        return 0
+    from . import coverage
+    rows = coverage.table()
+    for code, cards_ in rows:
+        print(f"{code}\t{SUPPORTED_LANGUAGES.get(code, '')}\t{','.join(cards_)}")
+    print(f"{len(rows)} languages covered by the installed cards", file=sys.stderr)
+    if not rows:
+        print("No cards installed yet: glyphbridge cards install hymt2-q4 madlad-int8", file=sys.stderr)
     return 0
 
 
@@ -235,7 +244,8 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("cards", nargs="*", help="Card ids, e.g. opus:tr-en madlad gemma lid checker")
     c.set_defaults(func=_cmd_cards)
 
-    lang = sub.add_parser("languages", help="List core language codes")
+    lang = sub.add_parser("languages", help="List core language codes (--all: every language installed cards cover)")
+    lang.add_argument("--all", action="store_true", help="Every language any installed card covers, with the cards")
     lang.set_defaults(func=_cmd_languages)
     return p
 

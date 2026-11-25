@@ -23,9 +23,20 @@ ROUTES: Dict[str, Tuple[List[str], str]] = {
     "ar-en": (["hymt2-q4", "opus"], "hymt2-q4 90.5 > opus 76.4"),
     "zh-en": (["hymt2-q4", "opus"], "hymt2-q4 86.5 > opus 58.3"),
     "la-en": (["gemma-q4", "gemma", "opus-group", "madlad-int8"], "gemma-q4 75.1 > opus-group 49.5"),
+    # golden-v3 (CI #102)
+    "en-de": (["opus", "hymt2-q4"], "opus 88.7 > hymt2-q4 80.1"),
+    "en-fr": (["opus", "hymt2-q4"], "opus 96.3 > hymt2-q4 90.1"),
+    "en-es": (["opus", "hymt2-q4"], "opus 86.9 > hymt2-q4 86.3"),
+    "en-ar": (["opus", "hymt2-q4"], "opus 81.3 > hymt2-q4 69.4"),
+    "en-ru": (["hymt2-q4", "opus"], "hymt2-q4 83.8 > opus 70.8"),
+    "en-zh": (["hymt2-q4", "opus"], "hymt2-q4 50.6 > opus 39.0"),
+    "fa-en": (["hymt2-q4"], "hymt2-q4 86.9; no Opus-MT model"),
+    "ja-en": (["hymt2-q4", "opus"], "hymt2-q4 92.5 > opus 81.7"),
+    "ko-en": (["hymt2-q4", "opus"], "hymt2-q4 84.3 > opus (tc-big broken) 1.0"),
+    "hi-en": (["hymt2-q4", "opus"], "hymt2-q4 78.1 > opus 66.7"),
 }
 
-VERSION = "golden-v2-ci96"
+VERSION = "golden-v3-ci102"
 
 
 def enabled() -> bool:

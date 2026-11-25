@@ -94,6 +94,8 @@ Büyük setin değiştirdiği: golden-v1'de (18 cümle) Hy-MT2 tr→en'de Opus-M
 
 **Ölçüme dayalı yönlendirme tablosu** (`glyphbridge/routes.py`): ölçülen her çiftte en iyi kart önce denenir (Türkçe, Almanca, Fransızca için Opus-MT; İspanyolca, Rusça, Arapça, Çince için Hy-MT2; Latince için TranslateGemma 4-bit). Bütün 8 GB kartları kuruluyken golden-v2: tr→en **73,8**, en→tr 76,8, de→en 85,6, fr→en 80,1, es→en 88,9, ru→en 80,8, ar→en 90,5, zh→en 86,5, la→en 74,5. Her çift en iyi tekil kartla aynı ya da üstünde; Latince `gemma-q4`'ün tek başına aldığından 0,6 düşük. Varsayılan zincir ilk ölçülen puanın ~8 chrF altına düşerse CI kırmızı yanar.
 
+**golden-v3** (344 cümle, 21 çift; yalnız rapor): İngilizce→Almanca/Fransızca/İspanyolca/Rusça/Arapça/Çince ile Farsça, Japonca, Korece, Hintçe, Svahili, Yunanca→İngilizce eklendi. Hy-MT2 ja→en (92,5), fa→en (86,9), ko→en (84,3), hi→en (78,1), en→ru (83,8) ve en→zh'de (50,6) önde; Opus-MT en→fr (96,3), en→de (88,7), en→es (86,9) ve en→ar'da (81,3). Yönlendirme tablosu bu çiftleri de içeriyor. İki bozuk Opus-MT tc-big modeli daha çıktı (Yunanca, Korece: yalnız noktalama) ve atlanıyor; harf içermeyen bir çeviri artık her zaman başarısız sayılıyor. **Anlam modu** (`GLYPHBRIDGE_MEANING=1`, büyük dil modeli kartlarına deyim talimatı) deyim puanını yalnız 0–1,7 chrF artırdı, zh→en'i 2,5 düşürdü; bu yüzden isteğe bağlı kalıyor. Deyimler için talimat değil veri (çeviri belleği) gerekiyor.
+
 **Hy-MT2** (Tencent; Hugging Face'te en çok beğenilen çeviri modeli) Türkçe↔İngilizce için şimdiye kadar ölçülen en iyi kart: chrF **79,6** / **77,9** (Opus-MT 75,6 / 76,8), deyimlerde 46,8 (Opus-MT 28,4), tepe RAM 2,2 GB. Kurulunca (`glyphbridge cards install hymt2-q4`) ilk o denenir.
 
 ### Duygu modülü: tonu koruyun
