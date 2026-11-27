@@ -1405,6 +1405,17 @@ def test_free_memory_mode_skips_card_that_does_not_fit(monkeypatch, tmp_path):
     assert "huge" in cache.last_refusal and "5000" in cache.last_refusal
 
 
+def test_free_memory_mode_keeps_loaded_card_when_unloading_cannot_help(monkeypatch, tmp_path):
+    # Seen on an 8 GB laptop: a 5.5 GB card that could never fit unloaded the 2.2 GB card in
+    # use, was refused anyway, and the next sentence had to load the small card again.
+    cache, state = _free_cache(monkeypatch, tmp_path, free=3000)    # 2000 usable
+    cache.get("small", lambda: "S", 1500)
+    state["free"] = 1500                                            # the card now uses RAM
+    assert cache.get("huge", lambda: "H", 5500) is None             # 500 usable + 1500 loaded < 5500
+    assert list(cache._items) == ["small"]                          # still loaded
+    assert "only 2000 MB" in cache.last_refusal                     # 1500 - 1000 spare + 1500 loaded
+
+
 def test_free_memory_mode_unloads_old_cards_first(monkeypatch, tmp_path):
     cache, state = _free_cache(monkeypatch, tmp_path, free=2500)    # 1500 usable
     cache.get("a", lambda: "A", 1000)
