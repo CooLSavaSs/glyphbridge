@@ -1481,3 +1481,37 @@ def test_missing_card_hint_names_card_size_and_ram():
     assert "madlad-int8" in hint                                   # 400+ languages offered too
     rare = missing_card_hint("sw", "yo")                            # outside Hy-MT2's 36 languages
     assert "cards install madlad-int8" in rare and "hymt2-q4" not in rare
+
+
+def test_hardware_settings_device_threads_gpu_layers(monkeypatch):
+    from glyphbridge import backends
+    for k in ("GLYPHBRIDGE_DEVICE", "GLYPHBRIDGE_THREADS", "GLYPHBRIDGE_GPU_LAYERS"):
+        monkeypatch.delenv(k, raising=False)
+    assert backends.device() == "cpu"
+    assert backends.gpu_layers("cpu") == 0 and backends.gpu_layers("cuda") == -1
+    assert backends.cpu_threads(3) == 3
+    monkeypatch.setenv("GLYPHBRIDGE_DEVICE", "cuda")
+    monkeypatch.setenv("GLYPHBRIDGE_THREADS", "2")
+    monkeypatch.setenv("GLYPHBRIDGE_GPU_LAYERS", "16")
+    assert backends.device() == "cuda" and backends.cpu_threads(3) == 2 and backends.gpu_layers("cuda") == 16
+    assert all(b.device == "cuda" for b in backends.default_backends())
+
+
+def test_hardware_sweep_plan_has_no_personal_fields():
+    import os
+    import pytest
+    pytest.importorskip("psutil")
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("hardware_sweep", os.path.join(
+        os.path.dirname(__file__), "..", "scripts", "hardware_sweep.py"))
+    hs = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hs)
+    info = hs.machine()
+    assert set(info) == {"cpu", "cores_physical", "cores_logical", "ram_gb", "gpus", "os", "python", "id"}
+    plan = hs.settings({**info, "gpus": [{"name": "x", "vram_mb": 12288}]}, hs.PHASES, [4, 8], [1, 4], 2.0)
+    assert [c["phase"] for c in plan] == (["ram"] * 2 + ["threads"] * 2 + ["ram-gpu"] * 2
+                                          + ["gpu"] * len(hs.GPU_LAYERS))
+    assert len({hs.key(c) for c in plan}) == len(plan)
+    assert hs.settings({**info, "gpus": []}, hs.PHASES, [4], [1], 2.0) == [
+        c for c in hs.settings({**info, "gpus": []}, ["ram", "threads"], [4], [1], 2.0)]
+    assert plan[0]["budget_mb"] == 2048 and plan[1]["budget_mb"] == 6144

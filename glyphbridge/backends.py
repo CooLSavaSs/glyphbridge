@@ -58,6 +58,45 @@ def measured_ram_path() -> str:
         os.path.expanduser("~"), ".cache", "glyphbridge", "measured_ram.json")
 
 
+
+# -- Hardware: device, CPU threads, GPU layers ------------------------------------
+def device() -> str:
+    """GLYPHBRIDGE_DEVICE: "cpu" (default), "cuda", or "auto" (cuda when a CUDA GPU is found)."""
+    want = os.environ.get("GLYPHBRIDGE_DEVICE", "cpu").strip().lower()
+    if want != "auto":
+        return want
+    try:
+        import ctranslate2  # type: ignore
+        if ctranslate2.get_cuda_device_count() > 0:
+            return "cuda"
+    except Exception:  # noqa: BLE001 - no CUDA build, no driver: stay on the CPU
+        pass
+    try:
+        import torch  # type: ignore
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:  # noqa: BLE001
+        pass
+    return "cpu"
+
+
+def cpu_threads(default: Optional[int] = None) -> int:
+    """GLYPHBRIDGE_THREADS, else ``default``, else every logical core."""
+    env = os.environ.get("GLYPHBRIDGE_THREADS")
+    if env:
+        return max(1, int(env))
+    return default if default is not None else (os.cpu_count() or 2)
+
+
+def gpu_layers(dev: str) -> int:
+    """Layers of a GGUF card llama.cpp puts on the GPU: GLYPHBRIDGE_GPU_LAYERS, else all
+    (-1) on cuda and none on the CPU. Fewer layers = less GPU memory (a smaller card)."""
+    env = os.environ.get("GLYPHBRIDGE_GPU_LAYERS")
+    if env:
+        return int(env)
+    return -1 if dev == "cuda" else 0
+
+
 class ModelCache:
     """Process-wide cache of loaded cards, sized to the RAM that is free right now.
 
@@ -540,9 +579,10 @@ class MadladInt8Backend(Backend):
                             if os.path.exists(os.path.join(path, f))), None)
             if sp_file is None:
                 raise BackendUnavailable("tokenizer (spiece.model) missing from " + self.repo)
-            threads = max(1, (os.cpu_count() or 2) - 1)
-            translator = ctranslate2.Translator(path, device=self.device, compute_type="int8",
-                                                intra_threads=threads)
+            threads = cpu_threads(max(1, (os.cpu_count() or 2) - 1))
+            translator = ctranslate2.Translator(
+                path, device=self.device, intra_threads=threads,
+                compute_type="int8_float16" if self.device == "cuda" else "int8")
             return translator, spm.SentencePieceProcessor(model_file=sp_file)
         return self.cache.get(self.repo, loader, CARDS["madlad-int8"].ram_mb)
 
@@ -651,7 +691,7 @@ class GemmaQ4Backend(Backend):
                 raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
             path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
                                 self.filename)
-            return _llama(Llama, path)
+            return _llama(Llama, path, self.device)
         return self.cache.get(self.repo, loader, CARDS["gemma-q4"].ram_mb)
 
     def supports(self, source: str, target: str) -> bool:
@@ -704,12 +744,13 @@ def _import_llama():
     return Llama
 
 
-def _llama(Llama, path: str):
+def _llama(Llama, path: str, dev: str = "cpu"):
     """Open a GGUF card with llama.cpp. On CPUs the installed llama.cpp build does not
     support (Windows error 0xc000001d, illegal instruction) the card is skipped instead of
     taking the whole translation down; the other cards still work."""
     try:
-        return Llama(model_path=path, n_ctx=2048, n_threads=os.cpu_count() or 2, verbose=False)
+        return Llama(model_path=path, n_ctx=2048, n_threads=cpu_threads(), n_gpu_layers=gpu_layers(dev),
+                     verbose=False)
     except OSError as exc:
         raise BackendUnavailable(
             f"llama.cpp cannot run on this CPU ({exc}); the GGUF cards are skipped. "
@@ -746,7 +787,7 @@ class HyMT2Q4Backend(Backend):
                 raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
             path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
                                 self.filename)
-            return _llama(Llama, path)
+            return _llama(Llama, path, self.device)
         return self.cache.get(self.repo, loader, self.ram_mb)
 
     def supports(self, source: str, target: str) -> bool:
@@ -797,7 +838,8 @@ def default_backends(cache: ModelCache = CACHE) -> List[Backend]:
     known = {"opus": OpusBackend, "gemma-q4": GemmaQ4Backend, "gemma": GemmaBackend,
              "opus-group": OpusGroupBackend, "madlad-int8": MadladInt8Backend, "madlad": MadladBackend,
              "hymt2-q4": HyMT2Q4Backend}
-    return [known[n.strip()](cache) for n in order if n.strip() in known]
+    dev = device()
+    return [known[n.strip()](cache, device=dev) for n in order if n.strip() in known]
 
 
 def names(backends: Iterable[Backend]) -> List[str]:
