@@ -3,8 +3,9 @@
 Run it with ``glyphbridge serve``. If an API key is configured (``--api-key`` or the
 ``GLYPHBRIDGE_API_KEY`` environment variable), every request except ``/v1/health``
 must send ``Authorization: Bearer <key>`` (or ``X-API-Key: <key>``). Without a key
-the server only listens on localhost by default, so nothing is exposed. Each client
-may make ``GLYPHBRIDGE_RATE_LIMIT`` requests per minute (default 120; 0 = no limit).
+the server only listens on localhost by default, so nothing is exposed. Requests are
+rate-limited per configured API key, or per client IP when API-key auth is disabled
+(``GLYPHBRIDGE_RATE_LIMIT`` requests per minute; default 120, 0 = no limit).
 """
 
 from __future__ import annotations
@@ -70,7 +71,7 @@ def _chat_reply(model: str, content: str, extra: dict) -> dict:
 
 
 class RateLimiter:
-    """Sliding-window limit per client (API key if given, else IP address)."""
+    """Sliding-window limit per configured API key, or per client IP without auth."""
 
     def __init__(self, per_minute: int):
         self.per_minute = per_minute
@@ -109,8 +110,9 @@ def create_app(engine: Optional[Engine] = None, api_key: Optional[str] = None,
             supplied = authorization[7:].strip()
         if key and (not supplied or not hmac.compare_digest(supplied, key)):
             raise HTTPException(status_code=401, detail="Invalid or missing API key")
-        client = request.client.host if request.client else "unknown"
-        wait = limiter.check(client)
+        client_ip = request.client.host if request.client else "unknown"
+        rate_limit_identity = f"api-key:{key}" if key else f"ip:{client_ip}"
+        wait = limiter.check(rate_limit_identity)
         if wait is not None:
             raise HTTPException(status_code=429, detail="Too many requests",
                                 headers={"Retry-After": str(wait)})
