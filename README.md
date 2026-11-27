@@ -196,6 +196,8 @@ glyphbridge cards remove madlad
 GLYPHBRIDGE_OFFLINE=1 glyphbridge translate "..." --to en   # installed cards only, no downloads
 ```
 
+**More RAM, more cores, a graphics card.** 8 GB is the floor, not a ceiling: on a bigger machine more cards stay loaded at once (up to `GLYPHBRIDGE_MAX_MODELS`, default 3), so a page in many languages does not wait for cards to reload, and the larger opt-in cards fit (`--profile quality`). `GLYPHBRIDGE_THREADS` sets the CPU threads (default: all). `GLYPHBRIDGE_DEVICE=cuda` (or `auto`) runs the cards on an NVIDIA GPU, with CUDA builds of llama-cpp-python, CTranslate2 and torch; `GLYPHBRIDGE_GPU_LAYERS` puts only part of a GGUF card on the GPU for cards with little memory. The GPU path is new and not measured yet. To measure your own machine across RAM sizes, thread counts and GPU layers, and add the numbers here, see [docs/HARDWARE_SWEEP.md](docs/HARDWARE_SWEEP.md).
+
 ### Roadmap: making cards smaller
 
 The goal is to use a large model's knowledge without running all of it:

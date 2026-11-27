@@ -1,0 +1,53 @@
+name: Hardware sweep (RAM sizes, CPU threads)
+
+# Runs scripts/hardware_sweep.py on a GitHub-hosted runner (4 CPU threads, 16 GB RAM, no GPU):
+# the runner pretends to be a 4, 6, 8 ... 16 GB PC (cgroup memory cap via systemd-run) and
+# measures speed, peak RAM and FLORES-200 quality for each size, then 1, 2, 4 CPU threads.
+# Bigger machines and GPUs: run the same script there, see docs/HARDWARE_SWEEP.md.
+on:
+  workflow_dispatch:
+    inputs:
+      ram_gb:
+        description: "RAM sizes to pretend, separated by spaces"
+        default: "4 6 8 10 12 14 16"
+      phases:
+        description: "ram, threads or both"
+        default: "ram threads"
+      per_lang:
+        description: "Sentences per language (2 = default, 1 = quick)"
+        default: "2"
+
+concurrency:
+  group: glyphbridge-heavy-models
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+          pip install -e ".[8gb,lid,transformers]" sacrebleu psutil
+      - name: Install the 8 GB cards
+        run: glyphbridge cards install hymt2-q4 gemma-q4 madlad-int8
+      - name: Sweep
+        env:
+          RAM: ${{ inputs.ram_gb }}
+          PHASES: ${{ inputs.phases }}
+          PER_LANG: ${{ inputs.per_lang }}
+        run: python scripts/hardware_sweep.py --phases $PHASES --ram-gb $RAM --per-lang "$PER_LANG" --out sweep-out
+      - name: Report
+        if: always()
+        run: test -f sweep-out/README.md && cat sweep-out/README.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hardware-sweep
+          path: sweep-out/
