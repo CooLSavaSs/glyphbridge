@@ -165,13 +165,22 @@ class ModelCache:
         free = free_ram_mb()
         if free is None:
             return True                    # cannot measure: behave as before
+        force = self._force or os.environ.get("GLYPHBRIDGE_ALLOW_OVERSIZE") == "1"
+        possible = free - self.margin_mb + self.used_mb
+        if possible < need and not force:
+            # Even unloading every loaded card would not make room: keep them loaded, so the
+            # card already in use is not thrown away for one that cannot load anyway.
+            return self._refuse(key, need, possible, free)
         while self._items and free - self.margin_mb < need:
             self._unload_oldest()
             free = free_ram_mb() or free
-        if free - self.margin_mb >= need or self._force or os.environ.get("GLYPHBRIDGE_ALLOW_OVERSIZE") == "1":
+        if free - self.margin_mb >= need or force:
             return True
+        return self._refuse(key, need, max(free - self.margin_mb, 0), free)
+
+    def _refuse(self, key: str, need: int, possible: int, free: int) -> bool:
         self.refusals += 1
-        self.last_refusal = (f"{key}: needs ~{need} MB, only {max(free - self.margin_mb, 0)} MB "
+        self.last_refusal = (f"{key}: needs ~{need} MB, only {max(possible, 0)} MB "
                              f"can be freed now ({free} MB free, {self.margin_mb} MB kept spare)")
         logger.warning("skipping card for now: %s", self.last_refusal)
         return False
@@ -676,6 +685,10 @@ def _import_llama():
     lib = os.environ.get("GLYPHBRIDGE_LLAMA_LIB")
     if lib:
         os.environ.setdefault("LLAMA_CPP_LIB_PATH", lib)
+        # That release brings LLVM's libomp; CTranslate2 cards bring Intel's libiomp5md. Both
+        # in one process make Intel's runtime abort ("OMP: Error #15") on the first
+        # CTranslate2 card. They are the same OpenMP runtime family; let them coexist.
+        os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
     from llama_cpp import Llama  # type: ignore
     if lib and not _LLAMA_BACKENDS_LOADED:
         import ctypes
