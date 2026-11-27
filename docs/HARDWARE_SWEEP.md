@@ -26,8 +26,10 @@ Rules for you:
 - Download only from: PyPI, download.pytorch.org, abetlen.github.io, github.com, Hugging Face
   (through `glyphbridge cards install`) and dl.fbaipublicfiles.com (the FLORES-200 test text the
   script downloads). Install system tools only with the OS package manager (winget, apt, brew).
-- Long commands (the sweep runs for hours) must run in the background; check on them from time
-  to time instead of waiting in one command that times out.
+- Long commands (the sweep runs for hours) must run in the background. Save the person's usage
+  quota: wait for the background command to finish (its completion notice) instead of polling;
+  if you must look, read only the last few lines of its output, at most every 30 minutes.
+  Keep your messages short while waiting.
 - When everything is done, tell the person in their own language, in a few sentences, what was
   measured and give the pull request link.
 
