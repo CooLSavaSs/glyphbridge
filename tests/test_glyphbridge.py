@@ -1499,6 +1499,8 @@ def test_hardware_settings_device_threads_gpu_layers(monkeypatch):
 
 def test_hardware_sweep_plan_has_no_personal_fields():
     import os
+    import pytest
+    pytest.importorskip("psutil")
     import importlib.util
     spec = importlib.util.spec_from_file_location("hardware_sweep", os.path.join(
         os.path.dirname(__file__), "..", "scripts", "hardware_sweep.py"))
