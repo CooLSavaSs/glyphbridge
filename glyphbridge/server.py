@@ -4,7 +4,8 @@ Run it with ``glyphbridge serve``. If an API key is configured (``--api-key`` or
 ``GLYPHBRIDGE_API_KEY`` environment variable), every request except ``/v1/health``
 must send ``Authorization: Bearer <key>`` (or ``X-API-Key: <key>``). Without a key
 the server only listens on localhost by default, so nothing is exposed. Each client
-may make ``GLYPHBRIDGE_RATE_LIMIT`` requests per minute (default 120; 0 = no limit).
+may make ``GLYPHBRIDGE_RATE_LIMIT`` requests per minute (default 120; 0 = no limit),
+counted per IP address. Behind a reverse proxy every caller shares the proxy's IP.
 """
 
 from __future__ import annotations
@@ -70,7 +71,8 @@ def _chat_reply(model: str, content: str, extra: dict) -> dict:
 
 
 class RateLimiter:
-    """Sliding-window limit per client (API key if given, else IP address)."""
+    """Sliding-window limit per client IP address. The API key is one shared secret, so
+    counting per key would put every caller in a single bucket."""
 
     def __init__(self, per_minute: int):
         self.per_minute = per_minute
