@@ -1,0 +1,69 @@
+name: Multilingual 500-word document benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      backends:
+        description: "Backend(s), e.g. hymt2-q4 or hymt2-q4,gemma-q4,madlad-int8"
+        required: true
+        default: "hymt2-q4,gemma-q4,madlad-int8"
+      langs:
+        description: "FLORES codes separated by spaces; blank means all 50 configured languages"
+        required: false
+        default: ""
+      words:
+        description: "English-word-equivalent document length"
+        required: true
+        default: "500"
+      direction:
+        description: "x-en, en-x or both"
+        required: true
+        default: "both"
+      context:
+        description: "0 = context off, 1 = context on"
+        required: true
+        default: "0"
+
+concurrency:
+  group: document-benchmark-${{ github.ref }}-${{ inputs.backends }}-${{ inputs.langs }}-${{ inputs.direction }}-${{ inputs.words }}-${{ inputs.context }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: 500-word-equivalent multilingual document benchmark (CPU)
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CPU dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+          pip install -e ".[8gb,transformers]" sacrebleu
+      - name: Install model cards
+        run: glyphbridge cards install madlad-int8 gemma-q4 hymt2-q4
+      - name: Run multilingual document benchmark
+        env:
+          GLYPHBRIDGE_ENABLE_HYMT: "1"
+          GLYPHBRIDGE_ENABLE_GEMMA: "1"
+          GLYPHBRIDGE_BACKENDS: ${{ inputs.backends }}
+          GLYPHBRIDGE_CONTEXT: ${{ inputs.context }}
+          LANGS: ${{ inputs.langs }}
+          WORDS: ${{ inputs.words }}
+          DIRECTION: ${{ inputs.direction }}
+        run: |
+          args=(--words "$WORDS" --direction "$DIRECTION" --json document-benchmark.json)
+          if [ -n "$LANGS" ]; then
+            read -r -a selected_langs <<< "$LANGS"
+            args+=(--langs "${selected_langs[@]}")
+          fi
+          python scripts/flores_document.py "${args[@]}"
+      - name: Upload JSON report
+        uses: actions/upload-artifact@v4
+        with:
+          name: multilingual-document-benchmark
+          path: document-benchmark.json
+          retention-days: 14
