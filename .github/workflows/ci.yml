@@ -10,6 +10,7 @@ jobs:
   tests:
     name: Unit tests (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         python: ["3.10", "3.12"]
@@ -27,6 +28,11 @@ jobs:
   smoke:
     name: Real translation smoke test (CPU)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Share one concurrency group with Cards and FLORES so heavyweight model work is serialized.
+    concurrency:
+      group: glyphbridge-heavy-models
+      cancel-in-progress: false
     needs: tests
     steps:
       - uses: actions/checkout@v4

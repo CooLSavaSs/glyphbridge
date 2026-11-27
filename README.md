@@ -99,7 +99,22 @@ All scores are **chrF** (0–100, higher is better) against human reference tran
 | golden-v2 | same | same | Opus-MT only (default install) | tr→en 73.2, en→tr 76.8, de→en 85.6, fr→en 80.1, es→en 86.9, ru→en 74.8, **ar→en 1.3 (broken, now skipped)**, zh→en 58.3, la→en 49.5 | CI #96 |
 | golden-v3 | 344 sentences, 21 pairs | English→X and X→English | all 8 GB cards | Hy-MT2 leads ja→en 92.5, fa→en 86.9, ko→en 84.3, hi→en 78.1, en→ru 83.8, en→zh 50.6; Opus-MT leads en→fr 96.3, en→de 88.7, en→es 86.9, en→ar 81.3 | report only |
 | golden-v3 low-resource | 9 sentences per pair | X→English | TranslateGemma 4-bit | sw→en 92.0, hi→en 88.1, fa→en 88.0, el→en 86.7 | CI #103 |
-| FLORES-200 | first 20 devtest sentences × 50 languages | X→English only | Hy-MT2 + TranslateGemma 4-bit + MADLAD int8, route table | **50/50 translated, median 60.8**; best Maltese 79.0, Welsh 75.7; weakest Wolof 35.7, Yoruba 38.3, Tibetan 39.3, Quechua 39.3, Igbo 47.5 | `flores.yml` |
+| FLORES-200 (run #8) | first 20 devtest sentences × 50 languages | X→English | Hy-MT2 + TranslateGemma 4-bit + MADLAD int8, route table | **50/50 translated, median 60.8** | CI #8 |
+| FLORES-200 (run #10) | first 20 devtest sentences × 50 languages | X→English | Hy-MT2 + TranslateGemma 4-bit + MADLAD int8, route table | **50/50 translated, median 60.5**; Yoruba 37.0, Igbo 47.2, Wolof 34.8 | CI #10 |
+| FLORES-200 (run #10) | first 20 devtest sentences × 50 languages | English→X | Hy-MT2 + TranslateGemma 4-bit + MADLAD int8, route table | **50/50 translated, median 50.0**; Yoruba 21.9, Igbo 38.9 | CI #10 |
+
+### Speed and RAM profiles (CI #118)
+
+Measured on 107 golden-v2 Turkish↔English sentences. RAM is peak process RSS in MB; latency is after the first sentence except where marked first/load.
+
+| Profile | First/load (s) | Later sentence (s) | Peak RAM (MB) | chrF | Flagged |
+|---|---:|---:|---:|---:|---:|
+| fast | 4.0 | 1.70 | 5,345 | 72.3 | 24 |
+| balanced | 4.7 | 1.94 | 8,339 | **74.4** | 7 |
+| quality | 7.6 | 2.96 | 8,696 | 69.2 | 7 |
+| low-ram | 1.8 | 1.65 | 7,843 | 73.9 | 6 |
+
+The profile names describe routing/settings, not guaranteed memory ceilings. These measured peaks show that balanced and quality can exceed 8 GB process RSS in this CI benchmark; use low-ram when memory is constrained. Flagged counts results marked for review, not necessarily incorrect translations.
 
 What the numbers taught us:
 
@@ -108,7 +123,7 @@ What the numbers taught us:
 - **Broken models were found and are skipped:** Opus-MT `ar-en`, and the tc-big Greek and Korean models (punctuation only). A translation with no letters now always counts as failed.
 - **Latin:** MADLAD gets *Gallia est omnis divisa in partes tres* wrong; TranslateGemma 4-bit handles it, so Latin goes to `gemma-q4` when installed, otherwise to Opus-MT's Italic group model.
 - **Per-card routing** (`glyphbridge/routes.py`; a card moves ahead only with ≥ 3 chrF) raised FLORES Mongolian 32.5 → 59.0, Kazakh 42.9 → 59.1, Zulu 49.5 → 59.4.
-- **Not measured yet:** English→X on FLORES, more than 20 sentences per language, COMET, documents, OCR and speech accuracy.
+- **Still not measured:** more than 20 FLORES sentences per language, context-window on/off impact, COMET, document translation quality, OCR accuracy on real pages and speech accuracy.
 
 Run them yourself: `python scripts/golden.py tests/golden/v2/tr-en.tsv` and `python scripts/flores.py --sentences 20`.
 
