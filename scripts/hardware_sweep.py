@@ -8,7 +8,7 @@ One run measures three things on one machine, each setting in its own fresh Pyth
 
   ram      the machine pretends to be a PC with 4, 6, 8 ... GB of RAM (up to what it has).
            The cap is enforced by the operating system where possible (Linux: a cgroup via
-           systemd-run; Windows: a job object) at that size minus --os-reserve-gb (what the OS and
+           systemd-run; Windows: a hard working-set limit) at that size minus --os-reserve-gb (what the OS and
            other programs of such a PC use), and Glyphbridge's own RAM budget is set to the same.
            Every row says how the cap was enforced ("cap" column) - "budget" means only
            Glyphbridge's own budget, which simulates its decisions but not swapping.
@@ -142,51 +142,17 @@ def workload(per_lang: int):
 
 
 # -- RAM cap ----------------------------------------------------------------------------
-def _windows_job_cap(limit_mb: int) -> str:
-    """Put this process into a job object that limits its committed memory. Returns what worked."""
+def _windows_ws_cap(limit_mb: int) -> str:
+    """Hard-limit the physical RAM (working set) this process may hold. Like a real PC with
+    little RAM, the process can still use more memory, but the rest is paged to disk (slow),
+    instead of failing. Needs no administrator rights."""
     k32 = ctypes.WinDLL("kernel32", use_last_error=True)
-
-    class IO(ctypes.Structure):
-        _fields_ = [(n, ctypes.c_ulonglong) for n in ("r", "w", "o", "rb", "wb", "ob")]
-
-    class BASIC(ctypes.Structure):
-        _fields_ = [("PerProcessUserTimeLimit", ctypes.c_longlong), ("PerJobUserTimeLimit", ctypes.c_longlong),
-                    ("LimitFlags", ctypes.c_uint32), ("MinimumWorkingSetSize", ctypes.c_size_t),
-                    ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", ctypes.c_uint32),
-                    ("Affinity", ctypes.c_size_t), ("PriorityClass", ctypes.c_uint32),
-                    ("SchedulingClass", ctypes.c_uint32)]
-
-    class EXT(ctypes.Structure):
-        _fields_ = [("Basic", BASIC), ("Io", IO), ("ProcessMemoryLimit", ctypes.c_size_t),
-                    ("JobMemoryLimit", ctypes.c_size_t), ("PeakProcessMemoryUsed", ctypes.c_size_t),
-                    ("PeakJobMemoryUsed", ctypes.c_size_t)]
-
-    k32.CreateJobObjectW.restype = ctypes.c_void_p
     k32.GetCurrentProcess.restype = ctypes.c_void_p
-    k32.SetInformationJobObject.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
-    k32.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-    job = k32.CreateJobObjectW(None, None)
-    if not job:
-        return "budget"
-    done = []
-    limit = limit_mb * 2**20
-    # 1) working set: physical RAM the process may hold (the closest thing to "this PC has X GB")
-    ext = EXT()
-    ext.Basic.LimitFlags = 0x1  # JOB_OBJECT_LIMIT_WORKINGSET
-    ext.Basic.MinimumWorkingSetSize = 16 * 2**20
-    ext.Basic.MaximumWorkingSetSize = limit
-    if k32.SetInformationJobObject(job, 9, ctypes.byref(ext), ctypes.sizeof(ext)):
-        done.append("workingset")
-    # 2) commit limit on top (ignored for memory-mapped model files)
-    ext.Basic.LimitFlags |= 0x200  # JOB_OBJECT_LIMIT_JOB_MEMORY
-    ext.JobMemoryLimit = limit
-    if not done:
-        ext.Basic.LimitFlags = 0x200
-    if k32.SetInformationJobObject(job, 9, ctypes.byref(ext), ctypes.sizeof(ext)):
-        done.append("commit")
-    if not done or not k32.AssignProcessToJobObject(job, k32.GetCurrentProcess()):
-        return "budget"
-    return "job:" + "+".join(done)
+    k32.SetProcessWorkingSetSizeEx.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32]
+    QUOTA_LIMITS_HARDWS_MIN_DISABLE, QUOTA_LIMITS_HARDWS_MAX_ENABLE = 0x2, 0x4
+    ok = k32.SetProcessWorkingSetSizeEx(k32.GetCurrentProcess(), 16 * 2**20, limit_mb * 2**20,
+                                        QUOTA_LIMITS_HARDWS_MIN_DISABLE | QUOTA_LIMITS_HARDWS_MAX_ENABLE)
+    return "workingset" if ok else "budget"
 
 
 def _linux_cap_prefix(limit_mb: int):
@@ -234,7 +200,7 @@ class Watch(threading.Thread):
 def child(cfg: dict, rows: list) -> dict:
     cap = "none"
     if cfg.get("ram_gb") and sys.platform == "win32":
-        cap = _windows_job_cap(cfg["budget_mb"])
+        cap = _windows_ws_cap(cfg["budget_mb"])
     elif cfg.get("ram_gb"):
         cap = cfg.get("cap", "budget")
     threads = cfg.get("threads")
