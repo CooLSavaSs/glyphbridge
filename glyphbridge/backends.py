@@ -18,6 +18,7 @@ runs what the current sentence needs.
 
 from __future__ import annotations
 
+import logging
 import math
 import os
 import threading
@@ -26,6 +27,8 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 
 from .cards import CARDS, OPUS_RAM_MB, _cached_repos, is_installed, offline, pinned
 
+logger = logging.getLogger("glyphbridge")
+
 Output = List[Tuple[str, Optional[float]]]  # (translation, model probability 0–1, or None if unknown)
 
 
@@ -33,49 +36,189 @@ class BackendUnavailable(RuntimeError):
     """The backend cannot load its model (not installed, gated, offline, ...)."""
 
 
-class ModelCache:
-    """Process-wide cache of loaded cards with a RAM budget.
+def free_ram_mb() -> Optional[int]:
+    """RAM the system can give right now without swapping (MB), or None if unknown."""
+    try:
+        import psutil  # type: ignore
+        return int(psutil.virtual_memory().available / 1024 / 1024)
+    except Exception:  # noqa: BLE001 - no psutil / unsupported platform
+        return None
 
-    Only the cards a sentence needs are loaded. When the estimated RAM of the
-    loaded cards would exceed the budget, the least recently used card is unloaded
-    first. A single card larger than the budget is still allowed on its own.
+
+def _process_rss_mb() -> Optional[int]:
+    try:
+        import psutil  # type: ignore
+        return int(psutil.Process().memory_info().rss / 1024 / 1024)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def measured_ram_path() -> str:
+    return os.environ.get("GLYPHBRIDGE_MEASURED_RAM") or os.path.join(
+        os.path.expanduser("~"), ".cache", "glyphbridge", "measured_ram.json")
+
+
+class ModelCache:
+    """Process-wide cache of loaded cards, sized to the RAM that is free right now.
+
+    Only the cards a sentence needs are loaded; the least recently used card is
+    unloaded first to make room.
+
+    Fixed budget (``budget_mb=`` or GLYPHBRIDGE_RAM_BUDGET_MB): the estimated RAM of the
+    loaded cards stays under it; a single card larger than the budget is still allowed
+    on its own (the old behaviour, kept for tests and for people who set a number).
+
+    Free-memory mode (the default): before each load the cache reads how much RAM the
+    system can free right now and keeps GLYPHBRIDGE_RAM_MARGIN_MB (default 1024) spare.
+    A card that does not fit even after unloading the others is skipped *for now*
+    (not marked broken), so the route moves on to the next, smaller card instead of
+    pushing the machine into swap. GLYPHBRIDGE_ALLOW_OVERSIZE=1 loads it anyway.
+
+    Measured RAM: the first time a card loads, the growth of this process is recorded
+    in ~/.cache/glyphbridge/measured_ram.json. Later decisions use the larger of that
+    measurement and the card's estimate, so a card whose estimate was too optimistic is
+    not loaded into a machine that cannot hold it. (Weights that llama.cpp memory-maps
+    are read lazily, so a load-time measurement can be lower than the real need; that
+    is why it only ever raises the estimate.)
     """
 
     def __init__(self, budget_mb: Optional[int] = None, max_models: Optional[int] = None):
-        from .cards import ram_budget_mb
-        self.budget_mb = budget_mb if budget_mb is not None else ram_budget_mb()
+        self._fixed_budget = budget_mb
         self.max_models = max_models or int(os.environ.get("GLYPHBRIDGE_MAX_MODELS", "3"))
+        self.margin_mb = int(os.environ.get("GLYPHBRIDGE_RAM_MARGIN_MB", "1024"))
         self._items: "OrderedDict[str, Tuple[object, int]]" = OrderedDict()
         self._failed: set = set()
         self._lock = threading.Lock()
+        self._measured: Optional[dict] = None
+        self.last_refusal: Optional[str] = None
+        self.refusals = 0                  # how many loads were skipped for lack of RAM
+        self._force = False
 
+    @property
+    def budget_mb(self) -> Optional[int]:
+        """The fixed budget, or None in free-memory mode (read at call time, so setting
+        GLYPHBRIDGE_RAM_BUDGET_MB after import still works)."""
+        if self._fixed_budget is not None:
+            return self._fixed_budget
+        env = os.environ.get("GLYPHBRIDGE_RAM_BUDGET_MB")
+        return int(env) if env else None
+
+    def room_mb(self) -> int:
+        """RAM a card may take: what is free now (or the fixed budget) plus what the loaded
+        cards hold, because they are unloaded to make room."""
+        if self.budget_mb is not None:
+            return self.budget_mb + self.used_mb
+        free = free_ram_mb()
+        if free is None:
+            return 4096 + self.used_mb
+        return max(free - self.margin_mb, 0) + self.used_mb
+
+    # -- measured RAM ---------------------------------------------------------------
+    def measured(self) -> dict:
+        if self._measured is None:
+            try:
+                import json
+                with open(measured_ram_path(), encoding="utf-8") as f:
+                    data = json.load(f)
+                self._measured = {k: int(v) for k, v in data.items()} if isinstance(data, dict) else {}
+            except Exception:  # noqa: BLE001 - missing or unreadable file = nothing measured yet
+                self._measured = {}
+        return self._measured
+
+    def _record(self, key: str, mb: int) -> None:
+        data = self.measured()
+        if mb <= data.get(key, 0):
+            return
+        data[key] = mb
+        try:
+            import json
+            path = measured_ram_path()
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=1, sort_keys=True)
+            os.replace(tmp, path)
+        except OSError:
+            pass                           # a read-only home must not stop translation
+
+    def need_mb(self, key: str, estimate_mb: int) -> int:
+        return max(estimate_mb, self.measured().get(key, 0))
+
+    # -- cache ----------------------------------------------------------------------
     @property
     def used_mb(self) -> int:
         return sum(ram for _, ram in self._items.values())
 
-    def _evict_for(self, ram_mb: int) -> None:
-        while self._items and (self.used_mb + ram_mb > self.budget_mb or len(self._items) >= self.max_models):
-            self._items.popitem(last=False)
+    def _unload_oldest(self) -> None:
+        self._items.popitem(last=False)
         import gc
         gc.collect()
 
+    def _make_room(self, key: str, need: int) -> bool:
+        """Unload old cards until `need` MB fits; False if it cannot fit right now."""
+        while self._items and len(self._items) >= self.max_models:
+            self._unload_oldest()
+        if self.budget_mb is not None:
+            while self._items and self.used_mb + need > self.budget_mb:
+                self._unload_oldest()
+            return True                    # fixed budget: a lone oversize card is allowed
+        free = free_ram_mb()
+        if free is None:
+            return True                    # cannot measure: behave as before
+        while self._items and free - self.margin_mb < need:
+            self._unload_oldest()
+            free = free_ram_mb() or free
+        if free - self.margin_mb >= need or self._force or os.environ.get("GLYPHBRIDGE_ALLOW_OVERSIZE") == "1":
+            return True
+        self.refusals += 1
+        self.last_refusal = (f"{key}: needs ~{need} MB, only {max(free - self.margin_mb, 0)} MB "
+                             f"can be freed now ({free} MB free, {self.margin_mb} MB kept spare)")
+        logger.warning("skipping card for now: %s", self.last_refusal)
+        return False
+
     def get(self, key: str, loader, ram_mb: int = 0):
+        need = self.need_mb(key, ram_mb)
         with self._lock:
             if key in self._items:
                 self._items.move_to_end(key)
                 return self._items[key][0]
             if key in self._failed:
                 return None
-            self._evict_for(ram_mb)
+            if not self._make_room(key, need):
+                return None                # not broken, just too big right now
+        before = _process_rss_mb()
         try:
             value = loader()
         except BackendUnavailable:
             with self._lock:
                 self._failed.add(key)
             return None
+        after = _process_rss_mb()
+        if before is not None and after is not None and after - before > 50:
+            self._record(key, after - before)
         with self._lock:
-            self._items[key] = (value, ram_mb)
+            self._items[key] = (value, need)
         return value
+
+    def oversize(self):
+        """Context manager: allow loads that do not fit (the engine's last resort)."""
+        import contextlib
+
+        @contextlib.contextmanager
+        def ctx():
+            self._force = True
+            try:
+                yield
+            finally:
+                self._force = False
+        return ctx()
+
+    def status(self) -> dict:
+        """What is loaded, what was measured and how much RAM is free (for `glyphbridge ram`)."""
+        return {"mode": "fixed budget" if self.budget_mb is not None else "free memory",
+                "budget_mb": self.budget_mb, "free_mb": free_ram_mb(), "margin_mb": self.margin_mb,
+                "loaded": {k: ram for k, (_, ram) in self._items.items()},
+                "measured": dict(self.measured()), "last_refusal": self.last_refusal}
 
     def loaded(self, key: str) -> bool:
         return key in self._items

@@ -158,7 +158,13 @@ def _cmd_cards(args: argparse.Namespace) -> int:
     from . import cards
     if args.action in (None, "list"):
         have = set(cards.installed_cards())
-        print(f"RAM budget: {cards.ram_budget_mb()} MB  (set GLYPHBRIDGE_RAM_BUDGET_MB to change)\n")
+        from .backends import CACHE
+        st = CACHE.status()
+        if st["budget_mb"] is not None:
+            print(f"RAM: fixed budget {st['budget_mb']} MB (GLYPHBRIDGE_RAM_BUDGET_MB)\n")
+        else:
+            print(f"RAM: {st['free_mb']} MB free now; cards are chosen to fit it with {st['margin_mb']} MB "
+                  f"spare (GLYPHBRIDGE_RAM_MARGIN_MB). Measured cards: {len(st['measured'])}\n")
         for c in cards.CARDS.values():
             mark = "\u2713" if c.id in have else " "
             print(f"[{mark}] {c.id:<11} RAM ~{c.ram_mb:>5} MB  disk {c.disk:<8} {c.license:<12} {c.title}")

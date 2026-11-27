@@ -55,7 +55,7 @@ def usable_ram_mb() -> int:
     because the cache unloads them to make room. Without the second part a card that
     would fit after unloading counted as "too big" and was skipped (FLORES re-run:
     MADLAD lost Mongolian, Kazakh, Tibetan, Uyghur and Khmer to a weaker card)."""
-    return cards.ram_budget_mb() + CACHE.used_mb
+    return CACHE.room_mb()
 
 
 class TranslationError(RuntimeError):
@@ -294,39 +294,51 @@ class Engine:
         best: List[Optional[TranslationResult]] = [None] * len(texts)
         pending = list(range(len(texts)))
         tones = self.emotion.labels(texts)
-        for route in routes:
-            if not pending:
-                break
-            try:
-                outs, probs, label = self._run_route(route, [texts[i] for i in pending])
-            except BackendUnavailable:
-                continue
-            sims = self.checker.similarity([texts[i] for i in pending], outs)
-            out_tones = self.emotion.labels(outs) if any(tones) else [None] * len(outs)
-            still = []
-            for i, out, prob, sim, out_tone in zip(pending, outs, probs, sims, out_tones):
-                conf = sim if sim is not None else prob
-                found = consistency(texts[i], out, source) + self.glossary.check(texts[i], out, source, target)
-                issues = list(found)
-                flip = self.emotion.flipped(tones[i], out_tone)
-                if flip:
-                    issues.append(flip)
-                ok = self.checker.passes(sim) and not issues
-                prev = best[i]
-                attempts = (prev.attempts if prev else []) + [label]
-                cand = TranslationResult(out, source, target, None if conf is None else round(conf, 4), label,
-                                         flagged=not ok, similarity=sim, attempts=attempts, issues=issues,
-                                         tone=tones[i][0] if tones[i] else None,
-                                         translation_confidence=None if prob is None else round(prob, 4),
-                                         consistency_issues=found)
-                better = (len(cand.issues), -(cand.confidence or 0)) < (len(prev.issues), -(prev.confidence or 0)) if prev else True
-                if prev is None or ok or better:
-                    best[i] = cand
-                else:
-                    prev.attempts = attempts
-                if not ok:
-                    still.append(i)
-            pending = still
+        def run(routes, pending):
+            for route in routes:
+                if not pending:
+                    break
+                try:
+                    outs, probs, label = self._run_route(route, [texts[i] for i in pending])
+                except BackendUnavailable:
+                    continue
+                sims = self.checker.similarity([texts[i] for i in pending], outs)
+                out_tones = self.emotion.labels(outs) if any(tones) else [None] * len(outs)
+                still = []
+                for i, out, prob, sim, out_tone in zip(pending, outs, probs, sims, out_tones):
+                    conf = sim if sim is not None else prob
+                    found = consistency(texts[i], out, source) + self.glossary.check(texts[i], out, source, target)
+                    issues = list(found)
+                    flip = self.emotion.flipped(tones[i], out_tone)
+                    if flip:
+                        issues.append(flip)
+                    ok = self.checker.passes(sim) and not issues
+                    prev = best[i]
+                    attempts = (prev.attempts if prev else []) + [label]
+                    cand = TranslationResult(out, source, target, None if conf is None else round(conf, 4), label,
+                                             flagged=not ok, similarity=sim, attempts=attempts, issues=issues,
+                                             tone=tones[i][0] if tones[i] else None,
+                                             translation_confidence=None if prob is None else round(prob, 4),
+                                             consistency_issues=found)
+                    better = (len(cand.issues), -(cand.confidence or 0)) < (len(prev.issues), -(prev.confidence or 0)) if prev else True
+                    if prev is None or ok or better:
+                        best[i] = cand
+                    else:
+                        prev.attempts = attempts
+                    if not ok:
+                        still.append(i)
+                pending = still
+
+        refused = CACHE.refusals
+        run(routes, pending)
+        if any(r is None for r in best) and CACHE.refusals > refused:
+            # Every card that could do it was too big for the RAM free right now. Translating
+            # slowly (swap) beats not translating: retry once, smallest route first.
+            backends_mod.logger.warning("no card fits the free RAM; loading the smallest anyway (%s)",
+                                        CACHE.last_refusal)
+            with CACHE.oversize():
+                run(sorted(routes, key=lambda r: sum(getattr(b, "ram_mb", 0) for b, _, _ in r)),
+                    [i for i, r in enumerate(best) if r is None])
 
         if any(r is None for r in best):
             raise TranslationError(

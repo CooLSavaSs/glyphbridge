@@ -1015,7 +1015,7 @@ def test_target_language_answers_in_many_languages():
 
 def test_loaded_cards_count_as_freeable_ram(monkeypatch):
     from glyphbridge import backends, cards, engine as eng
-    monkeypatch.setattr(cards, "ram_budget_mb", lambda: 2000)
+    monkeypatch.setenv("GLYPHBRIDGE_RAM_BUDGET_MB", "2000")
     monkeypatch.setattr(backends.CACHE, "_items", backends.CACHE._items.__class__({"x": (object(), 4000)}))
     assert eng.usable_ram_mb() == 6000
     small, big = FakeBackend("hymt2-q4", OPUS.table), FakeBackend("madlad-int8", OPUS.table)
@@ -1368,3 +1368,81 @@ def test_ottoman_letters_normalized_to_persian_forms():
     assert normalize_ottoman("هلاك ايدر") == "هلاک ایدر"
     assert normalize_ottoman("غرسى") == "غرسی"
     assert normalize_ottoman("ونازک") == "ونازک"  # already Ottoman: unchanged
+
+
+# -- free-memory card choice (ditto-code idea, 27.11.2026) -------------------------
+def _free_cache(monkeypatch, tmp_path, free):
+    import glyphbridge.backends as bk
+    monkeypatch.delenv("GLYPHBRIDGE_RAM_BUDGET_MB", raising=False)
+    monkeypatch.setenv("GLYPHBRIDGE_MEASURED_RAM", str(tmp_path / "measured.json"))
+    monkeypatch.setenv("GLYPHBRIDGE_RAM_MARGIN_MB", "1000")
+    state = {"free": free}
+    monkeypatch.setattr(bk, "free_ram_mb", lambda: state["free"])
+    monkeypatch.setattr(bk, "_process_rss_mb", lambda: None)
+    return bk.ModelCache(max_models=5), state
+
+
+def test_free_memory_mode_skips_card_that_does_not_fit(monkeypatch, tmp_path):
+    cache, _ = _free_cache(monkeypatch, tmp_path, free=4000)       # 3000 MB usable
+    assert cache.get("small", lambda: "S", 2000) == "S"
+    assert cache.get("huge", lambda: "H", 5000) is None             # too big now
+    assert not cache.failed("huge")                                 # not marked broken
+    assert "huge" in cache.last_refusal and "5000" in cache.last_refusal
+
+
+def test_free_memory_mode_unloads_old_cards_first(monkeypatch, tmp_path):
+    cache, state = _free_cache(monkeypatch, tmp_path, free=2500)    # 1500 usable
+    cache.get("a", lambda: "A", 1000)
+    import glyphbridge.backends as bk
+    real_unload = cache._unload_oldest
+    def unload():
+        real_unload()
+        state["free"] += 1000                                       # unloading frees RAM
+    monkeypatch.setattr(cache, "_unload_oldest", unload)
+    assert cache.get("b", lambda: "B", 2000) == "B"
+    assert list(cache._items) == ["b"]
+
+
+def test_oversize_override(monkeypatch, tmp_path):
+    cache, _ = _free_cache(monkeypatch, tmp_path, free=2000)
+    monkeypatch.setenv("GLYPHBRIDGE_ALLOW_OVERSIZE", "1")
+    assert cache.get("huge", lambda: "H", 9000) == "H"
+
+
+def test_measured_ram_only_raises_the_estimate(monkeypatch, tmp_path):
+    import glyphbridge.backends as bk
+    cache, _ = _free_cache(monkeypatch, tmp_path, free=100000)
+    rss = iter([1000, 4500])                                        # load grew the process 3500 MB
+    monkeypatch.setattr(bk, "_process_rss_mb", lambda: next(rss))
+    cache.get("card", lambda: "C", 2000)
+    again = bk.ModelCache()
+    assert again.need_mb("card", 2000) == 3500                      # remembered across processes
+    assert again.need_mb("card", 6000) == 6000                      # never lowers an estimate
+
+
+def test_room_counts_loaded_cards(monkeypatch, tmp_path):
+    cache, _ = _free_cache(monkeypatch, tmp_path, free=3000)
+    cache.get("a", lambda: "A", 1500)
+    assert cache.room_mb() == 3000 - 1000 + 1500
+    monkeypatch.setenv("GLYPHBRIDGE_RAM_BUDGET_MB", "4000")
+    assert cache.budget_mb == 4000 and cache.room_mb() == 5500
+
+
+def test_engine_last_resort_when_no_card_fits(monkeypatch, tmp_path):
+    """On a full machine a translation must still come out: the smallest card is loaded anyway."""
+    import glyphbridge.engine as eng
+    cache, _ = _free_cache(monkeypatch, tmp_path, free=1200)       # only 200 MB usable
+    monkeypatch.setattr(eng, "CACHE", cache)
+
+    class CachedFake(FakeBackend):
+        def translate(self, texts, s, t):
+            if cache.get(self.name, lambda: self, self.ram_mb) is None:
+                raise BackendUnavailable("too big right now")
+            return super().translate(texts, s, t)
+
+    big, small = CachedFake("big", OPUS.table), CachedFake("small", OPUS.table)
+    big.ram_mb, small.ram_mb = 5000, 300
+    e = Engine(backends=[big, small], checker=FakeChecker())
+    r = e.translate("merhaba", "en", source="tr")
+    assert "small" in r.model and cache.refusals >= 2
+    assert not cache._force                                         # override switched off again

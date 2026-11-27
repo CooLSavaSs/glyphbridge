@@ -185,7 +185,9 @@ export GLYPHBRIDGE_GLOSSARY=terms.tsv   # for the API, MCP and Python
 
 ### Model cards: only what you need runs
 
-Every model is a **card**. Install only the cards you need; at run time only the card the current sentence needs is loaded, and cards are unloaded when the RAM budget (default: 60% of free RAM) is full. That is how Glyphbridge stays usable on an 8 GB PC.
+Every model is a **card**. Install only the cards you need; at run time only the card the current sentence needs is loaded. That is how Glyphbridge stays usable on an 8 GB PC.
+
+Before each card loads, Glyphbridge reads how much RAM the machine can free **right now** and keeps 1 GB spare (`GLYPHBRIDGE_RAM_MARGIN_MB`). Older cards are unloaded first; a card that still does not fit is skipped for now and the next, smaller card on the route is used, instead of pushing the machine into swap. If no card fits at all, the smallest one is loaded anyway, since a slow translation beats none. The first time a card loads, its real RAM use is measured and kept in `~/.cache/glyphbridge/measured_ram.json`; it can only raise a card's estimate, never lower it. Set `GLYPHBRIDGE_RAM_BUDGET_MB` for a fixed budget instead, or `GLYPHBRIDGE_ALLOW_OVERSIZE=1` to always load the best card. (Idea adapted from [ditto-code](https://github.com/drkostas/ditto-code), MIT.)
 
 ```bash
 glyphbridge cards                         # list cards and what is installed
