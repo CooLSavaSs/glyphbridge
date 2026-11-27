@@ -816,6 +816,121 @@ class HyMT2Q4Backend(Backend):
         return out
 
 
+class _T5Gguf:
+    """An encoder-decoder (T5) GGUF model on llama.cpp's low-level API, greedy decoding.
+    llama-cpp-python's ``Llama`` class only runs decoder-only models."""
+
+    def __init__(self, path: str):
+        import llama_cpp as L  # type: ignore
+        self.L = L
+        self.model = L.llama_model_load_from_file(path.encode(), L.llama_model_default_params())
+        if not self.model:
+            raise BackendUnavailable(f"llama.cpp could not load {path}")
+        if not L.llama_model_has_encoder(self.model):
+            raise BackendUnavailable(f"{path} is not an encoder-decoder model")
+        cp = L.llama_context_default_params()
+        cp.n_ctx = cp.n_batch = 1024
+        cp.n_threads = cp.n_threads_batch = cpu_threads()
+        self.ctx = L.llama_init_from_model(self.model, cp)
+        if not self.ctx:
+            raise BackendUnavailable("llama.cpp could not create a context")
+        self.vocab = L.llama_model_get_vocab(self.model)
+        self.n_vocab = L.llama_vocab_n_tokens(self.vocab)
+        self.eos = L.llama_vocab_eos(self.vocab)
+        self.start = L.llama_model_decoder_start_token(self.model)
+
+    def __del__(self):
+        L = getattr(self, "L", None)
+        if L is not None:
+            if getattr(self, "ctx", None):
+                L.llama_free(self.ctx)
+            if getattr(self, "model", None):
+                L.llama_model_free(self.model)
+
+    def _tokens(self, text: str) -> List[int]:
+        import ctypes
+        raw = text.encode("utf-8")
+        arr = (self.L.llama_token * (len(raw) + 8))()
+        n = self.L.llama_tokenize(self.vocab, raw, len(raw), arr, len(arr), True, True)
+        return list(arr[:max(n, 0)])
+
+    def _piece(self, tok: int) -> bytes:
+        import ctypes
+        buf = ctypes.create_string_buffer(128)
+        n = self.L.llama_token_to_piece(self.vocab, tok, buf, len(buf), 0, False)
+        return buf.raw[:max(n, 0)]
+
+    def generate(self, prompt: str, max_new: int = 512) -> str:
+        import numpy as np
+        L = self.L
+        ids = self._tokens(prompt)[:1000]
+        L.llama_memory_clear(L.llama_get_memory(self.ctx), True)
+        # Keep the token arrays in variables: the batch only points at them.
+        src = (L.llama_token * len(ids))(*ids)
+        if L.llama_encode(self.ctx, L.llama_batch_get_one(src, len(ids))) != 0:
+            raise BackendUnavailable("llama.cpp encode failed")
+        cur, out = self.start, []
+        one = (L.llama_token * 1)()
+        # Greedy decoding can loop ("the world is a place of ..., the world is a place of ...").
+        # Two guards: never repeat a 3-token sequence, and stop at about twice the input length.
+        max_new = min(max_new, 2 * len(ids) + 16)
+        for _ in range(max_new):
+            one[0] = cur
+            if L.llama_decode(self.ctx, L.llama_batch_get_one(one, 1)) != 0:
+                break
+            logits = np.ctypeslib.as_array(L.llama_get_logits_ith(self.ctx, -1), shape=(self.n_vocab,))
+            if len(out) >= 2:
+                last = (out[-2], out[-1])
+                banned = [out[i + 2] for i in range(len(out) - 2) if (out[i], out[i + 1]) == last]
+                if banned:
+                    logits = logits.copy()
+                    logits[banned] = -np.inf
+            cur = int(logits.argmax())
+            if cur == self.eos:
+                break
+            out.append(cur)
+        return b"".join(self._piece(t) for t in out).decode("utf-8", "replace").strip()
+
+
+class MadladQ4Backend(Backend):
+    """MADLAD-400 3B as a 4-bit GGUF (1.86 GB file) on llama.cpp: the 400+ language card in
+    about 2.5 GB RAM, for machines where madlad-int8 (3.3-5.5 GB) does not fit. Off until
+    installed (``glyphbridge cards install madlad-q4``). Greedy decoding (int8 uses beam 4)."""
+
+    name = "madlad-q4"
+    ram_mb = CARDS["madlad-q4"].ram_mb
+    repo, revision = pinned("madlad-q4", "GLYPHBRIDGE_MADLAD_Q4_REPO")
+    filename = "madlad400-3b-mt-q4_k_m.gguf"
+
+    def __init__(self, cache: ModelCache = CACHE, device: str = "cpu"):
+        self.cache, self.device = cache, device
+
+    def _load(self):
+        def loader():
+            try:
+                _import_llama()
+            except ImportError as exc:
+                raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
+            path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
+                                self.filename)
+            try:
+                return _T5Gguf(path)
+            except OSError as exc:
+                raise BackendUnavailable(f"llama.cpp cannot run on this CPU ({exc})") from exc
+        return self.cache.get(self.repo, loader, self.ram_mb)
+
+    def supports(self, source: str, target: str) -> bool:
+        if os.environ.get("GLYPHBRIDGE_DISABLE_MADLAD") == "1":
+            return False
+        return is_installed(self.repo) or os.environ.get("GLYPHBRIDGE_ENABLE_MADLAD_Q4") == "1"
+
+    def translate(self, texts, source, target) -> Output:
+        model = self._load()
+        if model is None:
+            raise BackendUnavailable("MADLAD-400 Q4 (GGUF) could not be loaded")
+        return [(model.generate(f"<2{target}> {t}"), None) for t in texts]
+
+
 class OpusGroupBackend(OpusBackend):
     """Opus-MT multi-language group models into English, for languages without a pair
     model. Group models into English need no language tag on the source side.
@@ -834,10 +949,10 @@ class OpusGroupBackend(OpusBackend):
 
 def default_backends(cache: ModelCache = CACHE) -> List[Backend]:
     order = os.environ.get("GLYPHBRIDGE_BACKENDS",
-                           "hymt2-q4,opus,gemma-q4,gemma,opus-group,madlad-int8,madlad").split(",")
+                           "hymt2-q4,opus,gemma-q4,gemma,opus-group,madlad-int8,madlad-q4,madlad").split(",")
     known = {"opus": OpusBackend, "gemma-q4": GemmaQ4Backend, "gemma": GemmaBackend,
              "opus-group": OpusGroupBackend, "madlad-int8": MadladInt8Backend, "madlad": MadladBackend,
-             "hymt2-q4": HyMT2Q4Backend}
+             "hymt2-q4": HyMT2Q4Backend, "madlad-q4": MadladQ4Backend}
     dev = device()
     return [known[n.strip()](cache, device=dev) for n in order if n.strip() in known]
 

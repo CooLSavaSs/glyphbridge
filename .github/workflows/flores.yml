@@ -49,6 +49,9 @@ jobs:
           pip install -e ".[8gb,transformers]" sacrebleu   # transformers: lets a run add per-pair opus cards (backends input)
       - name: Install the 8 GB cards
         run: glyphbridge cards install madlad-int8 gemma-q4 hymt2-q4
+      - name: Install madlad-q4 (only when a run asks for it)
+        if: ${{ contains(inputs.backends || '', 'madlad-q4') }}
+        run: glyphbridge cards install madlad-q4
       - name: FLORES-200, X->English (report only)
         if: ${{ (inputs.direction || 'both') != 'en-x' }}
         env:
