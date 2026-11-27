@@ -1472,3 +1472,12 @@ def test_engine_last_resort_when_no_card_fits(monkeypatch, tmp_path):
     r = e.translate("merhaba", "en", source="tr")
     assert "small" in r.model and cache.refusals >= 2
     assert not cache._force                                         # override switched off again
+
+
+def test_missing_card_hint_names_card_size_and_ram():
+    from glyphbridge.engine import missing_card_hint
+    hint = missing_card_hint("tr", "en")
+    assert "cards install hymt2-q4" in hint and "1.13 GB" in hint and "GB RAM" in hint
+    assert "madlad-int8" in hint                                   # 400+ languages offered too
+    rare = missing_card_hint("sw", "yo")                            # outside Hy-MT2's 36 languages
+    assert "cards install madlad-int8" in rare and "hymt2-q4" not in rare

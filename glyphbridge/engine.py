@@ -341,10 +341,7 @@ class Engine:
                     [i for i, r in enumerate(best) if r is None])
 
         if any(r is None for r in best):
-            raise TranslationError(
-                f"No backend could translate {source} -> {target} (models unavailable?). The base install "
-                "has no translation engine: pip install \"glyphbridge[8gb]\" (no PyTorch) or "
-                "\"glyphbridge[transformers]\" (Opus-MT, needs PyTorch).")
+            raise TranslationError(missing_card_hint(source, target))
         return best  # type: ignore[return-value]
 
     def translate(self, text: str, target: str, source: str = "auto") -> TranslationResult:
@@ -354,6 +351,23 @@ class Engine:
 # Below this many letters a segment is too short to identify reliably ("OK", "2024", a name),
 # so it takes the language of the whole input instead.
 MIN_DETECT_LETTERS = 20
+
+
+def missing_card_hint(source: str, target: str) -> str:
+    """What to install to translate source -> target, with download size and RAM."""
+    from .backends import HYMT2_LANGS
+    card = "hymt2-q4" if source in HYMT2_LANGS and target in HYMT2_LANGS else "madlad-int8"
+    c = cards.CARDS[card]
+    lines = [f"No installed card can translate {source} -> {target}.",
+             f"Install one: glyphbridge cards install {card}   "
+             f"(download {c.disk}, about {c.ram_mb / 1000:.1f} GB RAM while translating)"]
+    if card == "hymt2-q4":
+        m = cards.CARDS["madlad-int8"]
+        lines.append(f"For 400+ languages add: glyphbridge cards install madlad-int8   "
+                     f"(download {m.disk}, about {m.ram_mb / 1000:.1f} GB RAM)")
+    lines.append('The cards need the engines: pip install "glyphbridge[8gb]" (no PyTorch). '
+                 "See all cards: glyphbridge cards")
+    return "\n".join(lines)
 
 
 def detect_each(texts: Sequence[str]) -> List[str]:
