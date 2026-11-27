@@ -133,7 +133,7 @@ Run them yourself: `python scripts/golden.py tests/golden/v2/tr-en.tsv` and `pyt
 
 **Tested on a real 8 GB laptop** (Windows 10, a 2015-era Intel Core i5, 4 threads, no GPU, 1.6 GB RAM free at the start): Opus-MT tr→en translates in ~3 s per sentence after the first download, at 0.93 GB RAM. Two Windows problems found and fixed: the console crashed on ✓/⚠ (now printed as `?` where the console cannot show them), and a GGUF card that llama.cpp cannot run crashed the whole translation (now that card is skipped and the next one translates).
 
-**Older CPUs:** the prebuilt `llama-cpp-python` CPU wheel stops with *illegal instruction* (Windows error `0xc000001d`) on that 2015-era Core i5, so the GGUF cards (`hymt2-q4`, `gemma-q4`) are skipped there and Opus-MT / MADLAD translate. To use them on such a CPU, build llama.cpp for it: install the Visual Studio Build Tools (C++), then `set CMAKE_ARGS=-DGGML_NATIVE=ON` and `pip install llama-cpp-python --no-binary llama-cpp-python`.
+**Older CPUs:** the prebuilt `llama-cpp-python` CPU wheel stops with *illegal instruction* (Windows error `0xc000001d`) on that 2015-era Core i5 (Broadwell; it has AVX2, but the wheel's CPU library uses newer instructions), so the GGUF cards (`hymt2-q4`, `gemma-q4`) are skipped and Opus-MT / MADLAD translate. Fix without a compiler: download the official llama.cpp CPU release whose build number matches your llama-cpp-python (llama-cpp-python 0.3.38 = llama.cpp `b12651`, file `llama-b12651-bin-win-cpu-x64.zip`), unzip it and set `GLYPHBRIDGE_LLAMA_LIB` to that folder. That release has one CPU library per instruction set and loads the one your CPU runs (`ggml-cpu-haswell` on that i5). Measured on the same laptop (1.7 GB RAM free): `hymt2-q4` translated a Turkish sentence to English correctly in 25 s including loading. Building llama.cpp for your CPU (Visual Studio Build Tools, `CMAKE_ARGS=-DGGML_NATIVE=ON`, `pip install llama-cpp-python --no-binary llama-cpp-python`) also works.
 
 **Built-in idiom memory** (🔬, `GLYPHBRIDGE_IDIOMS=1`): 40 common Turkish↔English proverbs and idioms (folk sayings, both directions), used before any model; your own memory files override them.
 
@@ -222,7 +222,7 @@ The base package is light (a few MB) and has **no translation engine by itself**
 
 - **Disk:** models go to the Hugging Face cache (`~/.cache/huggingface`). Plan for the model sizes above plus ~1 GB free; [docs/disk.md](docs/disk.md) has measured sizes for every card and typical sets.
 - **Internet:** only to download a card the first time (`glyphbridge cards install …` does it ahead of time). After that, `GLYPHBRIDGE_OFFLINE=1` guarantees nothing is downloaded.
-- **Older CPUs** (e.g. a 2015-era Core i5): the prebuilt llama.cpp wheel crashes there, so the GGUF cards (`hymt2-q4`, `gemma-q4`) are skipped — add the Opus-MT profile, or build llama.cpp yourself (see *Older CPUs* above).
+- **Older CPUs** (e.g. a 2015-era Core i5): the prebuilt llama.cpp wheel crashes there, so the GGUF cards (`hymt2-q4`, `gemma-q4`) are skipped unless you point `GLYPHBRIDGE_LLAMA_LIB` at the official llama.cpp CPU release (see *Older CPUs* above); otherwise add the Opus-MT profile.
 
 ```bash
 # Example: the 8 GB profile with the two lightest cards

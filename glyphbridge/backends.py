@@ -637,7 +637,7 @@ class GemmaQ4Backend(Backend):
     def _load(self):
         def loader():
             try:
-                from llama_cpp import Llama  # type: ignore
+                Llama = _import_llama()
             except ImportError as exc:
                 raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
             path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
@@ -661,6 +661,36 @@ class GemmaQ4Backend(Backend):
         return out
 
 
+_LLAMA_BACKENDS_LOADED = False
+
+
+def _import_llama():
+    """Import llama-cpp-python's ``Llama``.
+
+    ``GLYPHBRIDGE_LLAMA_LIB`` may name the folder of an official llama.cpp Windows/Linux CPU
+    release (the same build number as the installed llama-cpp-python). That release carries
+    one CPU library per instruction set (``ggml-cpu-haswell``, ``-skylakex``, ...) and picks
+    the one this CPU runs, which fixes the 0xc000001d crash of the prebuilt wheel on older
+    CPUs. The folder is handed to llama-cpp-python and its CPU backends are loaded once."""
+    global _LLAMA_BACKENDS_LOADED
+    lib = os.environ.get("GLYPHBRIDGE_LLAMA_LIB")
+    if lib:
+        os.environ.setdefault("LLAMA_CPP_LIB_PATH", lib)
+    from llama_cpp import Llama  # type: ignore
+    if lib and not _LLAMA_BACKENDS_LOADED:
+        import ctypes
+        import glob
+        names = glob.glob(os.path.join(lib, "*ggml.*")) + glob.glob(os.path.join(lib, "libggml.*"))
+        ggml = next((n for n in names if os.path.basename(n) in ("ggml.dll", "libggml.so", "libggml.dylib")), None)
+        if ggml is None:
+            raise BackendUnavailable(f"GLYPHBRIDGE_LLAMA_LIB={lib} has no ggml library")
+        g = ctypes.CDLL(ggml)
+        g.ggml_backend_load_all_from_path.argtypes = [ctypes.c_char_p]
+        g.ggml_backend_load_all_from_path(lib.encode())
+        _LLAMA_BACKENDS_LOADED = True
+    return Llama
+
+
 def _llama(Llama, path: str):
     """Open a GGUF card with llama.cpp. On CPUs the installed llama.cpp build does not
     support (Windows error 0xc000001d, illegal instruction) the card is skipped instead of
@@ -670,7 +700,7 @@ def _llama(Llama, path: str):
     except OSError as exc:
         raise BackendUnavailable(
             f"llama.cpp cannot run on this CPU ({exc}); the GGUF cards are skipped. "
-            "Fix: build llama-cpp-python for this CPU, see README 'Older CPUs'.") from exc
+            "Fix: set GLYPHBRIDGE_LLAMA_LIB to an official llama.cpp CPU release, see README 'Older CPUs'.") from exc
 
 
 # Languages Hy-MT2 was trained on (model card of tencent/Hy-MT2-1.8B).
@@ -698,7 +728,7 @@ class HyMT2Q4Backend(Backend):
     def _load(self):
         def loader():
             try:
-                from llama_cpp import Llama  # type: ignore
+                Llama = _import_llama()
             except ImportError as exc:
                 raise BackendUnavailable("needs: pip install 'glyphbridge[small]'") from exc
             path = os.path.join(_snapshot(self.repo, allow=[self.filename], revision=self.revision),
