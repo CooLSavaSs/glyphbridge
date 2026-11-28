@@ -1533,3 +1533,50 @@ def test_engine_writes_uzbek_in_latin():
     e = Engine(backends=[fake], checker=FakeChecker(), memory=Memory(None))
     r = e.translate("The weather is nice today.", target="uz", source="en")
     assert r.translation == "Bugun ob-havo yaxshi."
+
+
+def test_llama_cpu_autofix_downloads_only_dlls_and_retries(monkeypatch, tmp_path):
+    import io
+    import os
+    import zipfile
+    from glyphbridge import llama_cpu as L
+    monkeypatch.setattr(L.sys, "platform", "win32")
+    monkeypatch.setattr(L, "build", lambda: "b1")
+    monkeypatch.setattr(L.os.path, "expanduser", lambda p: str(tmp_path))
+    monkeypatch.delenv("GLYPHBRIDGE_LLAMA_LIB", raising=False)
+    monkeypatch.delenv("GLYPHBRIDGE_LLAMA_AUTOFIX", raising=False)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("ggml.dll", b"x")
+        zf.writestr("ggml-cpu-haswell.dll", b"x")
+        zf.writestr("llama-cli.exe", b"x")       # not kept
+        zf.writestr("../evil.dll", b"x")         # no path escapes
+    def fake_get(url, dest):
+        assert url.startswith("https://github.com/ggml-org/llama.cpp/releases/download/b1/")
+        open(dest, "wb").write(buf.getvalue())
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlretrieve", fake_get)
+    calls = []
+    def fake_probe(path, lib=None, timeout=300):
+        calls.append(lib)
+        L.last_error[:] = ["OSError: [WinError -1073741795] Windows Error 0xc000001d"]
+        return 0 if lib else 1
+    monkeypatch.setattr(L, "probe", fake_probe)
+    assert L.fix("card.gguf", say=lambda *_: None) is True
+    lib = L.folder("b1")
+    assert sorted(os.listdir(lib)) == ["ggml-cpu-haswell.dll", "ggml.dll"]
+    assert not (tmp_path / ".cache" / "glyphbridge" / "llama-cpu" / "evil.dll").exists()
+    assert calls == [None, lib] and L.cached_lib() == lib
+
+
+def test_llama_cpu_autofix_leaves_other_errors_alone(monkeypatch):
+    from glyphbridge import llama_cpu as L
+    monkeypatch.setattr(L.sys, "platform", "win32")
+    monkeypatch.setattr(L, "cached_lib", lambda: None)
+    monkeypatch.delenv("GLYPHBRIDGE_LLAMA_LIB", raising=False)
+    def fake_probe(path, lib=None, timeout=300):
+        L.last_error[:] = ["MemoryError"]
+        return 1
+    monkeypatch.setattr(L, "probe", fake_probe)
+    monkeypatch.setattr(L, "download", lambda b: (_ for _ in ()).throw(AssertionError("no download")))
+    assert L.fix("card.gguf", say=lambda *_: None) is False
