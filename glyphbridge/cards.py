@@ -61,6 +61,15 @@ CARDS: Dict[str, Card] = {
                      revision="a0c709d9fac510f2c807aa3af52872340dc37a4a",
                      sha256=(("Hy-MT2-1.8B-Q4_K_M.gguf",
                               "dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699"),)),
+    "madlad-q4": Card("madlad-q4", "MADLAD-400 3B 4-bit GGUF — 400+ languages in ~2.5 GB RAM",
+                      "notjjustnumbers/madlad400-3b-mt-Q4_K_M-GGUF", 2600, "1.86 GB", "Apache-2.0",
+                      "Community Q4_K_M conversion of google/madlad400-3b-mt, run with llama.cpp "
+                      "(encoder-decoder). 2.0-2.5 GB RAM on an 8 GB laptop; greedy decoding. Only for when "
+                      "madlad-int8 (3.3-5.5 GB) does not fit: FLORES-200 English->X, 14 low-resource "
+                      "languages, 50 sentences: median chrF 41.5 vs 46.5 for int8, about 3x slower.",
+                      revision="b325d397b871d944f12cd98ddff3a969cc8fec6e",
+                      sha256=(("madlad400-3b-mt-q4_k_m.gguf",
+                               "fc56f16d215db71e856de3c3770974c867e3d95a782d415d4cfabc9fb470b8e4"),)),
     "emotion": Card("emotion", "Emotion module — keeps the tone (positive / neutral / negative)",
                     "lxyuan/distilbert-base-multilingual-cased-sentiments-student", 850, "0.55 GB",
                     "Apache-2.0", "Flags translations whose tone flips, e.g. a kind sentence that turns negative.",
@@ -179,7 +188,7 @@ def install(card_id: str) -> str:
             except Exception as exc:  # try the base model next
                 last = exc
         raise RuntimeError(f"No Opus-MT model for {card_id}: {last}")
-    if card_id in ("gemma-q4", "hymt2-q4"):  # GGUF repos hold several sizes; fetch only ours
+    if card_id in ("gemma-q4", "hymt2-q4", "madlad-q4"):  # GGUF repos hold several sizes; fetch only ours
         card = resolve(card_id)
         path = snapshot_download(card.repo, allow_patterns=[f for f, _ in card.sha256],
                                  revision=card.revision)

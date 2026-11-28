@@ -384,7 +384,7 @@ def test_gemma_prompt_format():
 def test_small_cards_are_default_order(monkeypatch):
     from glyphbridge.backends import default_backends
     monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
-    assert [b.name for b in default_backends()] == ["hymt2-q4", "opus", "gemma-q4", "gemma", "opus-group", "madlad-int8", "madlad"]
+    assert [b.name for b in default_backends()] == ["hymt2-q4", "opus", "gemma-q4", "gemma", "opus-group", "madlad-int8", "madlad-q4", "madlad"]
 
 
 def test_rate_limit(eng):
@@ -554,7 +554,7 @@ def test_default_router_order_is_locked(monkeypatch):
     # Change it only together with benchmark numbers.
     from glyphbridge.backends import ModelCache, default_backends, names
     monkeypatch.delenv("GLYPHBRIDGE_BACKENDS", raising=False)
-    assert names(default_backends(ModelCache(budget_mb=1))) == ["hymt2-q4", "opus", "gemma-q4", "gemma", "opus-group", "madlad-int8", "madlad"]
+    assert names(default_backends(ModelCache(budget_mb=1))) == ["hymt2-q4", "opus", "gemma-q4", "gemma", "opus-group", "madlad-int8", "madlad-q4", "madlad"]
 
 
 def test_madlad_int8_calls_ctranslate2_with_valid_arguments():
