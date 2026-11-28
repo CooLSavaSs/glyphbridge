@@ -25,7 +25,7 @@ import logging
 import os
 import unicodedata
 
-from . import cards, lid
+from . import cards, lid, orthography
 from . import backends as backends_mod
 from .backends import CACHE, Backend, BackendUnavailable, default_backends
 from .checker import Checker, consistency
@@ -302,6 +302,7 @@ class Engine:
                     outs, probs, label = self._run_route(route, [texts[i] for i in pending])
                 except BackendUnavailable:
                     continue
+                outs = [orthography.to_usual_script(o, target) for o in outs]  # e.g. Uzbek Cyrillic -> Latin
                 sims = self.checker.similarity([texts[i] for i in pending], outs)
                 out_tones = self.emotion.labels(outs) if any(tones) else [None] * len(outs)
                 still = []

@@ -1515,3 +1515,21 @@ def test_hardware_sweep_plan_has_no_personal_fields():
     assert hs.settings({**info, "gpus": []}, hs.PHASES, [4], [1], 2.0) == [
         c for c in hs.settings({**info, "gpus": []}, ["ram", "threads"], [4], [1], 2.0)]
     assert plan[0]["budget_mb"] == 2048 and plan[1]["budget_mb"] == 6144
+
+
+def test_uzbek_cyrillic_output_is_written_in_latin():
+    from glyphbridge.orthography import to_usual_script, uzbek_cyrillic_to_latin
+    assert uzbek_cyrillic_to_latin("Бугун об-ҳаво яхши.") == "Bugun ob-havo yaxshi."
+    assert uzbek_cyrillic_to_latin("Болалар паркда ўйнашмоқда.") == "Bolalar parkda o'ynashmoqda."
+    assert uzbek_cyrillic_to_latin("Ер ва Ғарб, ШАҲАР, Шаҳар") == "Yer va G'arb, SHAHAR, Shahar"
+    assert to_usual_script("Bugun ob-havo yaxshi.", "uz") == "Bugun ob-havo yaxshi."  # already Latin
+    assert to_usual_script("Бугун", "uz-Cyrl") == "Бугун"  # Cyrillic asked for on purpose
+    assert to_usual_script("Сегодня хорошо", "ru") == "Сегодня хорошо"  # other languages untouched
+
+
+def test_engine_writes_uzbek_in_latin():
+    fake = FakeBackend("cyr", {("en", "uz"): {"The weather is nice today.": "Бугун об-ҳаво яхши."}})
+    from glyphbridge.memory import Memory
+    e = Engine(backends=[fake], checker=FakeChecker(), memory=Memory(None))
+    r = e.translate("The weather is nice today.", target="uz", source="en")
+    assert r.translation == "Bugun ob-havo yaxshi."
