@@ -31,10 +31,15 @@ ROUTES: Dict[str, Tuple[List[str], str]] = {
     "en-ru": (["hymt2-q4", "opus"], "hymt2-q4 83.8 > opus 70.8"),
     "en-zh": (["hymt2-q4", "opus"], "hymt2-q4 50.6 > opus 39.0"),
     "fa-en": (["gemma-q4", "hymt2-q4", "madlad-int8"], "gemma-q4 88.0 > hymt2-q4 86.9 > madlad-int8 66.0 (CI #103)"),
-    "ja-en": (["hymt2-q4", "opus"], "hymt2-q4 92.5 > opus 81.7"),
-    "ko-en": (["madlad-int8", "gemma-q4", "hymt2-q4"],
-              "FLORES madlad-int8 58.8 > gemma-q4 57.6 > hymt2-q4 55.7 (golden-v3 had hymt2-q4 84.3 on 9 "
+    # FLORES-200 devtest, 100 sentences, both directions (runs 46122201661 / 46126035628 /
+    # 46133892728). Same >= 3 chrF rule; below that the faster card (hymt2-q4, ~2.5 s vs ~4-6 s) stays first.
+    "ja-en": (["madlad-int8", "hymt2-q4", "gemma-q4", "opus"],
+              "FLORES madlad-int8 59.4 > hymt2-q4 56.2 > gemma-q4 55.1 (golden-v3 had hymt2-q4 92.5 on "
               "hand-written sentences; FLORES human references win)"),
+    "ko-en": (["madlad-int8", "hymt2-q4", "gemma-q4"], "FLORES madlad-int8 57.4 > hymt2-q4 55.4 > gemma-q4 55.2"),
+    "en-ja": (["hymt2-q4", "madlad-int8", "gemma-q4"], "FLORES hymt2-q4 41.4 > madlad-int8 40.9 > gemma-q4 39.4"),
+    "en-ko": (["hymt2-q4", "madlad-int8", "gemma-q4"],
+              "FLORES madlad-int8 39.4 > hymt2-q4 37.5 > gemma-q4 32.8; +1.9 is under 3, hymt2-q4 is faster"),
     "hi-en": (["gemma-q4", "hymt2-q4", "opus"], "gemma-q4 88.1 > hymt2-q4 78.1 > opus 66.7 (CI #103)"),
     "sw-en": (["gemma-q4", "madlad-int8"], "gemma-q4 92.0 > madlad-int8 70.7; no Opus-MT, no Hy-MT2 (CI #103)"),
     "el-en": (["gemma-q4", "madlad-int8"], "gemma-q4 86.7 > madlad-int8 79.2; Opus tc-big broken (CI #103)"),
