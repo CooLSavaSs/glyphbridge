@@ -184,6 +184,8 @@ def install(card_id: str) -> str:
         path = snapshot_download(card.repo, allow_patterns=[f for f, _ in card.sha256],
                                  revision=card.revision)
         verify(card_id)
+        from . import llama_cpu
+        llama_cpu.fix(os.path.join(path, card.sha256[0][0]))  # older CPUs: fetch the right llama.cpp
         return path
     card = resolve(card_id)
     path = snapshot_download(card.repo, revision=card.revision, allow_patterns=ALLOW_PATTERNS.get(card_id),

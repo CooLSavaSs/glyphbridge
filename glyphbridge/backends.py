@@ -723,6 +723,9 @@ def _import_llama():
     CPUs. The folder is handed to llama-cpp-python and its CPU backends are loaded once."""
     global _LLAMA_BACKENDS_LOADED
     lib = os.environ.get("GLYPHBRIDGE_LLAMA_LIB")
+    if not lib and os.environ.get("GLYPHBRIDGE_LLAMA_NO_CACHED_LIB") != "1":
+        from . import llama_cpu
+        lib = llama_cpu.cached_lib()  # downloaded by `cards install` on CPUs that need it
     if lib:
         os.environ.setdefault("LLAMA_CPP_LIB_PATH", lib)
         # That release brings LLVM's libomp; CTranslate2 cards bring Intel's libiomp5md. Both
@@ -754,7 +757,7 @@ def _llama(Llama, path: str, dev: str = "cpu"):
     except OSError as exc:
         raise BackendUnavailable(
             f"llama.cpp cannot run on this CPU ({exc}); the GGUF cards are skipped. "
-            "Fix: set GLYPHBRIDGE_LLAMA_LIB to an official llama.cpp CPU release, see README 'Older CPUs'.") from exc
+            "Fix: glyphbridge cards install hymt2-q4 (it sets this CPU up), or see README 'Older CPUs'.") from exc
 
 
 # Languages Hy-MT2 was trained on (model card of tencent/Hy-MT2-1.8B).
